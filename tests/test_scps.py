@@ -6,7 +6,7 @@ guardrails promise, then evaluates it against the JSON Terraform rendered.
 
 import pytest
 
-from guardrails_tools.iam_eval import Decision, Request, scp_decision
+from guardrails_tools.iam_eval import Decision, Request, glob_match, scp_decision
 
 ACCOUNT = "111122223333"
 WORKLOAD = f"arn:aws:iam::{ACCOUNT}:role/app-deployer"
@@ -104,6 +104,23 @@ def test_protected_roles_cannot_be_changed_by_workloads(commercial, role, expect
     arn = f"arn:aws:iam::{ACCOUNT}:role/{role}"
     for action in ("iam:DeleteRole", "iam:AttachRolePolicy", "iam:UpdateAssumeRolePolicy"):
         assert decide(commercial, req(action, resource=arn)) is expected
+
+
+def test_nobody_can_create_a_role_named_like_an_exempt_principal(commercial):
+    # Otherwise any admin in a member account could create "security-breakglass"
+    # and inherit the exemption from every guardrail.
+    for name in ("security-breakglass", "security-pipeline"):
+        arn = f"arn:aws:iam::{ACCOUNT}:role/{name}"
+        assert decide(commercial, req("iam:CreateRole", resource=arn)) is Decision.EXPLICIT_DENY
+
+
+def test_every_exempt_role_is_protected(commercial):
+    core = commercial.scps["core"]["Statement"]
+    protected = next(s for s in core if s["Sid"] == "DenyProtectedRoleChanges")
+    exempt = protected["Condition"]["ArnNotLike"]["aws:PrincipalArn"]
+    for pattern in exempt:
+        name = pattern.split(":role/", 1)[1]
+        assert any(glob_match(res.split(":role/", 1)[1], name) for res in protected["Resource"]), pattern
 
 
 def test_pipeline_can_maintain_protected_roles(commercial):
