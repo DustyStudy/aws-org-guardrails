@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 uses [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-09-29
+
+### Security
+
+- The protected-role statement now also denies `iam:CreateRole`. Before,
+  anyone in a member account could create a role named like an exempt
+  principal (for example `security-breakglass`) and inherit its exemption.
+
+### Changed
+
+- The `policies` module rejects an exempt role whose name does not start
+  with one of `protected_role_name_prefixes`. Callers that exempt a role
+  outside those prefixes must add a matching prefix.
+
 ## [0.1.1] - 2026-09-29
 
 ### Fixed
@@ -33,5 +47,6 @@ uses [Semantic Versioning](https://semver.org/).
 - CI: fmt, validate, TFLint, terraform test on Terraform 1.9 and 1.16,
   ruff, pytest, Checkov, Trivy and Gitleaks.
 
+[0.2.0]: https://github.com/DustyStudy/aws-org-guardrails/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/DustyStudy/aws-org-guardrails/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/DustyStudy/aws-org-guardrails/releases/tag/v0.1.0

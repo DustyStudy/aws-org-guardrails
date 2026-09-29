@@ -39,6 +39,20 @@ CloudTrail trail or roll GuardDuty settings forward without first detaching
 the SCP from the whole OU, which is exactly the change window an attacker
 would want.
 
+The exemption matches roles by name, so the name itself has to be
+protected. `DenyProtectedRoleChanges` denies `iam:CreateRole` as well as
+every change to a protected role, and the `policies` module refuses an
+exempt role whose name does not start with a protected prefix. Without both,
+any administrator in a member account could create a role called
+`security-breakglass` and inherit its exemption from every guardrail. This
+gap was found while planning the first organization-wide rollout, before
+any account ran with it. `test_nobody_can_create_a_role_named_like_an_exempt_principal`
+now covers it.
+
+Because exempt roles cannot be created inside a member account, create them
+from the management account, for example with a service-managed StackSet
+(its `stacksets-exec-*` role can be exempted and protected the same way).
+
 Three statements have no exemption on purpose:
 
 - `DenyLeaveOrganization`: no principal in a member account needs this.
@@ -148,6 +162,7 @@ bugs was introduced into the policies and the suite was run against it:
 | `iam:*` removed from the global-service carve-out | Yes |
 | Root-user ARN hard-coded to `arn:aws:` | Yes (GovCloud test) |
 | Delegated path `NotResource` changed to `Resource` | Yes |
+| `iam:CreateRole` removed from the protected-role statement | Yes |
 | `StringNotEquals` changed to `StringNotLike` on the boundary check | No, and correctly so: without wildcards the two are equivalent |
 
 ## Roadmap
