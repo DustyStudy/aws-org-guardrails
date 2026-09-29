@@ -24,4 +24,4 @@ module "scp_guardrails" {
 ```
 
 Every policy has a matching `enable_*` boolean variable — see
-`variables.tf`, same defaults as the CloudFormation parameters.
+`variables.tf`.

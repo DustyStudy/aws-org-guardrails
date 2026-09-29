@@ -101,6 +101,5 @@ For GovCloud:
 ## Proof
 
 Run for real against a real AWS Organization - deployed via this Terraform
-module through the StackSet mechanism it's actually designed for (not just
-the standalone CFN template), then verified and torn down. See
+module through the StackSet mechanism it's actually designed for, then verified and torn down. See
 [`docs/PROOF.md`](../../../docs/PROOF.md).

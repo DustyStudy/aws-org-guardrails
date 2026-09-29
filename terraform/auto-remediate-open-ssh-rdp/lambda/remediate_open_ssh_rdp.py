@@ -15,7 +15,7 @@ Automation remediation paths:
    the SSM Automation document triggered from an AWS Config remediation).
    Describes the group and revokes any matching bad rules found on it
    (covers drift / rules added outside the event path, e.g. before this
-   stack was deployed, or via CloudFormation/Terraform directly).
+   stack was deployed, or via Terraform directly).
 
 Works in both AWS commercial and GovCloud partitions - no partition-
 specific values are hardcoded here; boto3 resolves the correct endpoints

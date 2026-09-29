@@ -15,8 +15,8 @@ permissions:
   contents: read
 
 jobs:
-  cloudformation:
-    name: CloudFormation (cfn-lint + Checkov)
+  stackset-template:
+    name: StackSet template (cfn-lint + Checkov)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -34,28 +34,14 @@ jobs:
         run: pip install "cfn-lint==1.55.1"
 
       - name: Run cfn-lint
-        # The Terraform member-baseline module ships a CloudFormation
-        # StackSet template of its own, so lint it alongside the rest.
-        run: cfn-lint 'cloudformation/**/*.yaml' terraform/security-baseline-new-accounts/member-baseline/baseline-template.yaml
+        # The Terraform member-baseline module deploys this CloudFormation
+        # template to every member account through a StackSet.
+        run: cfn-lint terraform/security-baseline-new-accounts/member-baseline/baseline-template.yaml
 
       - name: Run Checkov
-        # The "set-output is deprecated" warning this step produces comes
-        # from checkov-action's own internal Docker-output-relay wrapper,
-        # not from anything in this workflow - checkov-action runs as a
-        # Docker action (not JavaScript), so it was never subject to the
-        # Node.js runtime deprecations either. Dependabot (see
-        # .github/dependabot.yml) will surface newer checkov-action
-        # releases if/when upstream modernizes that wrapper.
-        uses: bridgecrewio/checkov-action@444c9db6fa75e2d9c19ebf1fde7322089be9009e # v12.3125.0
-        with:
-          directory: cloudformation
-          framework: cloudformation
-          quiet: true
-
-      - name: Run Checkov on the Terraform member-baseline StackSet template
-        # Lives under terraform/ (so the directory scan above and the
-        # Terraform job's framework filter both skip it), but it's a
-        # CloudFormation template that gets deployed into every member account.
+        # Lives under terraform/, so the Terraform job's framework filter
+        # skips it, but it's a CloudFormation template that gets deployed
+        # into every member account.
         uses: bridgecrewio/checkov-action@444c9db6fa75e2d9c19ebf1fde7322089be9009e # v12.3125.0
         with:
           file: terraform/security-baseline-new-accounts/member-baseline/baseline-template.yaml
@@ -63,7 +49,7 @@ jobs:
           quiet: true
 
   python-and-policies:
-    name: Python, policy JSON, and Lambda copy consistency
+    name: Python and policy JSON
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -78,7 +64,7 @@ jobs:
           python-version: "3.12"
 
       - name: Compile all Python sources
-        run: python -m compileall -q cloudformation terraform
+        run: python -m compileall -q terraform
 
       - name: Unit-test the Lambdas
         # boto3 clients are replaced with mocks in tests/, so no AWS access
@@ -92,21 +78,6 @@ jobs:
           for f in policies/*/*.json; do
             python -m json.tool "$f" > /dev/null || { echo "Invalid JSON: $f"; exit 1; }
           done
-
-      - name: Check CloudFormation and Terraform Lambda copies match
-        # Each Lambda ships as a copy under both cloudformation/ and
-        # terraform/ (each deployment method packages its own). They must
-        # stay identical, or a fix lands in one flavor and not the other.
-        run: |
-          status=0
-          while read -r cfn; do
-            tf="terraform/${cfn#cloudformation/}"
-            if [ -f "$tf" ] && ! cmp -s "$cfn" "$tf"; then
-              echo "::error file=$tf::differs from $cfn - keep the two copies identical"
-              status=1
-            fi
-          done < <(find cloudformation -name '*.py')
-          exit $status
 
   terraform:
     name: Terraform (fmt, validate, tflint, Checkov)

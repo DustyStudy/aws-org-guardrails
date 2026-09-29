@@ -10,7 +10,7 @@ You can expect an initial response within 5 business days.
 
 ## Scope
 
-This repository provides general-purpose (not FedRAMP-specific) AWS security CloudFormation and Terraform templates for cloud security engineers, designed to work in both AWS commercial and AWS GovCloud. This includes automated remediation tooling, SCP guardrails, IAM Identity Center auditing, and a Wiz findings bridge. Reports in scope include:
+This repository provides general-purpose (not FedRAMP-specific) AWS security Terraform modules for cloud security engineers, designed to work in both AWS commercial and AWS GovCloud. This includes automated remediation tooling, SCP guardrails, IAM Identity Center auditing, and a Wiz findings bridge. Reports in scope include:
 
 - Logic errors in templates/automation that could weaken security posture (e.g. overly permissive IAM, unintended public exposure, remediation logic that fails open)
 - Supply-chain concerns (malicious or unpinned dependencies, GitHub Actions)

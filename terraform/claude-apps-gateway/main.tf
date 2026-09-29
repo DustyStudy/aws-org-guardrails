@@ -3,8 +3,7 @@
 # A working example for customer-managed infrastructure, not a supported
 # production deployment - review and adapt before relying on it.
 #
-# Two-phase apply, same reason the CloudFormation version is split into
-# two stacks: the ECS service needs a real image in ECR before it can
+# Two-phase apply: the ECS service needs a real image in ECR before it can
 # start, so:
 #
 #   terraform apply -target=aws_ecr_repository.gateway
@@ -423,8 +422,7 @@ resource "aws_db_instance" "gateway" {
   backup_retention_period = 7
   copy_tags_to_snapshot   = true
   deletion_protection     = var.enable_deletion_protection
-  # Always snapshot on destroy (matches the CloudFormation flavor's
-  # DeletionPolicy: Snapshot). Deletion protection has to be turned off
+  # Always snapshot on destroy. Deletion protection has to be turned off
   # before a destroy is possible, so tying the snapshot to it meant the
   # snapshot was skipped in exactly the case it was meant to protect.
   skip_final_snapshot       = false

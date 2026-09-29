@@ -2,7 +2,7 @@
 Scans every IAM user's access keys and deactivates (does not delete) any
 key that's either too old or unused for too long, then publishes a summary
 to SNS. Invoked on a schedule (EventBridge Scheduler / CloudWatch Events
-rate/cron expression) - see the CloudFormation/Terraform in this tool.
+rate/cron expression) - see the Terraform in this tool.
 
 Deactivating rather than deleting means a false positive is a quick
 `aws iam update-access-key --status Active` away from being reversible,

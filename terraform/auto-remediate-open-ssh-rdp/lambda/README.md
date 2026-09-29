@@ -15,11 +15,5 @@ rule with no port restriction, e.g. protocol `-1`) with `CidrIp: 0.0.0.0/0`
 or `CidrIpv6: ::/0`, and revoke only those specific rule entries — other
 ingress rules on the same security group are left untouched.
 
-The CloudFormation templates keep their own copy of this file under
-`cloudformation/auto-remediate-open-ssh-rdp/lambda/` (CloudFormation has
-no native way to reference a file outside the stack's packaging root).
-**If you change the logic, update both copies** — they're intended to
-stay identical.
-
 No third-party dependencies; only `boto3` (available in the standard
 Lambda Python runtime).

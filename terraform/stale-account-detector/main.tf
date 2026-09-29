@@ -9,9 +9,12 @@ data "archive_file" "lambda_zip" {
 }
 
 # ---------------------------------------------------------------------
-# CloudTrail Lake - organization-wide, management events only. See
-# main.tf's header comment in the CFN version of this tool for why data
-# events are excluded.
+# CloudTrail Lake - organization-wide, management events only. Data
+# events (S3 object reads, Lambda invocations, etc.) are deliberately
+# excluded: they're high-volume, they cost more to ingest, and account
+# staleness only needs to know whether *anyone did anything* in an
+# account, which management events already capture (including
+# ConsoleLogin).
 # ---------------------------------------------------------------------
 resource "aws_cloudtrail_event_data_store" "org_activity" {
   count = var.create_event_data_store ? 1 : 0

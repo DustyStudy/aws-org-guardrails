@@ -15,7 +15,7 @@ top-level Proof section.
 | | |
 |---|---|
 | **Org** | One AWS Organization: a management account, and a dedicated single-account OU already used for earlier account-bootstrapping tests |
-| **Target** | `member-baseline`'s StackSet, applied via this repo's Terraform module (not the standalone CloudFormation template) |
+| **Target** | `member-baseline`'s StackSet, applied via this repo's Terraform module |
 | **Method** | `terraform apply` from the Organizations management account; GuardDuty/Security Hub/Config APIs read directly in the target member account before, during, and after; teardown re-verified the same way |
 
 ## 1. Claims and evidence

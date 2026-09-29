@@ -2,7 +2,7 @@
 
 A library of preventive Service Control Policies (SCPs) for common AWS
 guardrails. Deploy them individually as raw JSON, or use the
-CloudFormation/Terraform to create and attach them to Organizations
+Terraform to create and attach them to Organizations
 targets (OUs, accounts, or the root) in one shot.
 
 SCPs are an **Organizations** feature — deploy from the management
@@ -30,7 +30,7 @@ through your baseline automation *before* attaching it, or exempt that
 automation's role.
 
 `restrict-regions.json` has `REPLACE_WITH_ALLOWED_REGION_*` placeholders —
-edit those (or use the CloudFormation/Terraform, which templates the
+edit those (or use the Terraform module, which templates the
 region list for you) before attaching it. It's also the one most likely
 to need periodic upkeep: AWS occasionally adds new global services, and
 this list should be checked against AWS's own SCP examples over time.
@@ -52,23 +52,6 @@ aws organizations attach-policy \
   --target-id ou-xxxx-xxxxxxxx
 ```
 
-## Using CloudFormation
-
-```bash
-cd cloudformation/scp-guardrails
-aws cloudformation deploy \
-  --template-file template.yaml \
-  --stack-name scp-guardrails \
-  --parameter-overrides \
-      TargetIds=ou-abcd-11111111,123456789012 \
-      EnableRestrictRegions=true \
-      AllowedRegions=us-gov-west-1,us-gov-east-1
-```
-
-Each policy has its own `Enable*` parameter (default `true`, except
-`EnableRestrictRegions` which defaults `false` until you've reviewed the
-region list). Set any to `false` to skip creating that policy.
-
 ## Using Terraform
 
 ```hcl
@@ -82,7 +65,8 @@ module "scp_guardrails" {
 ```
 
 Every policy has a matching `enable_*` boolean variable (see
-`variables.tf`), same defaults as the CloudFormation parameters.
+`variables.tf`), defaulting to `true` except `enable_restrict_regions`,
+which defaults to `false` until you've reviewed the region list.
 
 ## GovCloud notes
 
@@ -99,15 +83,16 @@ Every policy has a matching `enable_*` boolean variable (see
 - **SCPs never apply to the Organization's management account**, so none
   of these policies (including `deny-root-user`) constrain it. Protect the
   management account's root user separately (MFA, no access keys) and see
-  [`root-activity-alarm`](../../cloudformation/root-activity-alarm/) for
+  [`root-activity-alarm`](../../terraform/root-activity-alarm/) for
   detection.
 - `deny-disable-security-services.json` also blocks `cloudtrail:UpdateTrail`
   and `PutEventSelectors`, so legitimate trail changes need a break-glass
   path (or an exemption for your automation role) once it's attached.
 - It also blocks `guardduty:UpdateDetector`, the call that can set a
   detector's `Enable` flag to `false`. The same call is used for legitimate
-  changes (finding publishing frequency, feature toggles), and CloudFormation
-  issues it when a `AWS::GuardDuty::Detector` is updated - so change those
+  changes (finding publishing frequency, feature toggles), and IaC tools
+  issue it when a detector is updated (for example Terraform's
+  `aws_guardduty_detector`) - so change those
   settings from an exempted role, or before attaching the policy.
 - It also blocks the current-name GuardDuty and Security Hub calls that
   detach an account from its delegated administrator

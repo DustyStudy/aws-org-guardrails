@@ -25,7 +25,7 @@ signing. So instead of verifying a header, this Lambda expects a long
 random secret token as the last path segment of the webhook URL itself
 (e.g. https://.../wiz-webhook/<secret>) - the same "unguessable URL"
 pattern most webhook-only integrations rely on. The secret is generated
-by the CloudFormation/Terraform deploy and stored in Secrets Manager;
+by the Terraform deploy and stored in Secrets Manager;
 see the module README for how to retrieve it and build the full URL to
 paste into Wiz.
 

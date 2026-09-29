@@ -4,19 +4,18 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![AWS](https://img.shields.io/badge/AWS-Commercial%20%2B%20GovCloud-orange)](#)
 
-Practical CloudFormation and Terraform for cloud security engineers:
-guardrails, auto-remediation, and detection templates for day-to-day AWS
-security work. Every template is written to run in both **AWS commercial
-and AWS GovCloud** (no hardcoded `arn:aws:...`, `${AWS::Partition}` / the
-`aws_partition` data source is used throughout).
+Practical Terraform for cloud security engineers: guardrails,
+auto-remediation, and detection modules for day-to-day AWS security work.
+Every module is written to run in both **AWS commercial and AWS GovCloud**
+(no hardcoded `arn:aws:...`; the `aws_partition` data source is used
+throughout).
 
-This is a general-purpose companion to [`fedramp-cfn-library`](https://github.com/DustyStudy/fedramp-cfn-library)
-and [`fedramp-terraform-library`](https://github.com/DustyStudy/fedramp-terraform-library),
-which focus specifically on FedRAMP Moderate/High/20x control mappings.
-Templates here aren't tied to a specific compliance framework; they're
+This is a general-purpose companion to [`fedramp-terraform-library`](https://github.com/DustyStudy/fedramp-terraform-library),
+which focuses specifically on FedRAMP Moderate/High/20x control mappings.
+Modules here aren't tied to a specific compliance framework; they're
 just useful guardrails.
 
-Each auto-remediation template here is independent and standalone by
+Each auto-remediation module here is independent and standalone by
 design: deploy the one you need with no other dependencies. For a
 governed pipeline that routes *every* Security Hub finding through
 policy-driven mode selection, blast-radius guardrails, human approval for
@@ -28,16 +27,15 @@ them), see [`aws-remediation-orchestrator`](https://github.com/DustyStudy/aws-re
 
 ## Structure
 
-Each tool/template lives in its own directory, mirrored under both
-`cloudformation/` and `terraform/` where practical:
+Each tool lives in its own directory under `terraform/`:
 
 ```
 aws-cloud-security-toolbox/
-├── cloudformation/
+├── terraform/
 │   ├── auto-remediate-open-ssh-rdp/
 │   │   ├── event-driven/       # EventBridge + CloudTrail, near real-time
 │   │   ├── config-rule/        # AWS Config + SSM Automation, catches drift
-│   │   └── lambda/             # shared Lambda source (CFN's own copy)
+│   │   └── lambda/             # shared Lambda source
 │   ├── scp-guardrails/         # deploys the SCPs below, attached to Organizations targets
 │   ├── root-activity-alarm/    # EventBridge -> SNS on any root activity
 │   ├── iam-credential-hygiene/ # scheduled deactivation of stale IAM keys
@@ -53,40 +51,15 @@ aws-cloud-security-toolbox/
 │   ├── sagemaker-notebook-exposure/
 │   │   ├── event-driven/       # EventBridge + CloudTrail, near real-time
 │   │   └── config-rule/        # AWS Config + SSM Automation, catches drift
-│   ├── claude-apps-gateway/     # reference deployment of Anthropic's self-hosted gateway
-│   │   ├── ecr/                 # phase 1: ECR repository
-│   │   └── infrastructure/      # phase 2: RDS, ALB, ECS service, IAM, Secrets Manager
+│   ├── claude-apps-gateway/     # reference deployment of Anthropic's self-hosted gateway (2-phase apply)
 │   ├── stale-account-detector/  # org-wide CloudTrail Lake scan for unused accounts
 │   └── wiz-finding-bridge/      # API Gateway + Lambda bridge for Wiz webhook findings
-├── terraform/
-│   ├── auto-remediate-open-ssh-rdp/
-│   │   ├── event-driven/
-│   │   ├── config-rule/
-│   │   └── lambda/             # shared Lambda source (Terraform zips this)
-│   ├── scp-guardrails/
-│   ├── root-activity-alarm/
-│   ├── iam-credential-hygiene/
-│   ├── identity-center-access-auditor/
-│   ├── ec2-isolation-runbook/
-│   ├── security-baseline-new-accounts/
-│   │   ├── member-baseline/
-│   │   └── organization-trail/
-│   ├── ai-ml-guardrails/
-│   ├── bedrock-logging-enforcement/
-│   ├── ai-agent-iam-auditor/
-│   ├── bedrock-cost-guardrails/
-│   ├── sagemaker-notebook-exposure/
-│   │   ├── event-driven/
-│   │   └── config-rule/
-│   ├── claude-apps-gateway/     # same reference deployment, single module (2-phase apply)
-│   ├── stale-account-detector/
-│   └── wiz-finding-bridge/
 └── policies/
-    ├── scp-guardrails/          # standalone SCP JSON, usable without CFN/TF
-    └── ai-ml-guardrails/        # standalone AI/ML SCP JSON, usable without CFN/TF
+    ├── scp-guardrails/          # standalone SCP JSON, usable without Terraform
+    └── ai-ml-guardrails/        # standalone AI/ML SCP JSON, usable without Terraform
 ```
 
-## Templates
+## Modules
 
 | Module | Type | What it does |
 |---|---|---|
@@ -131,8 +104,8 @@ deny disabling CloudTrail/Config/GuardDuty/Security Hub, require IMDSv2,
 deny leaving the Organization, deny disabling S3 Block Public Access, and
 an optional region-restriction policy. Usable as standalone JSON from
 `policies/scp-guardrails/`, or deployed/attached to Organizations targets
-via `cloudformation/scp-guardrails/` or `terraform/scp-guardrails/`. See
-`policies/scp-guardrails/README.md` for full usage of all three.
+via `terraform/scp-guardrails/`. See `policies/scp-guardrails/README.md`
+for full usage of both.
 
 ### `root-activity-alarm`
 
@@ -177,8 +150,8 @@ the wrong instance on a false positive can itself cause an outage.
 Multi-account governance: ensures every account in an OU gets a security
 baseline automatically, including accounts created later.
 
-- **`member-baseline/`**: a CloudFormation StackSet (service-managed,
-  auto-deployment) that enables GuardDuty, Security Hub, and AWS Config in
+- **`member-baseline/`**: a service-managed, auto-deploying StackSet,
+  managed from Terraform, that enables GuardDuty, Security Hub, and AWS Config in
   every targeted account.
 - **`organization-trail/`**: a single AWS Organization CloudTrail trail
   covering every account automatically. Deployed once, separately from
@@ -194,7 +167,7 @@ allow-listed set of foundation models, and lock down SageMaker notebook
 instances (no direct internet access, no root access, VPC required, KMS
 encryption required). Same structure as `scp-guardrails`: standalone
 JSON from `policies/ai-ml-guardrails/`, or deploy/attach via
-`cloudformation/ai-ml-guardrails/` or `terraform/ai-ml-guardrails/`.
+`terraform/ai-ml-guardrails/`.
 
 ### `bedrock-logging-enforcement`
 
@@ -262,7 +235,7 @@ laptop. Mirrors
 closely: ECS Fargate, RDS for PostgreSQL (encrypted, TLS-only), Secrets
 Manager, a least-privilege IAM task role scoped to exactly the Bedrock
 Claude model ARNs, and an internal ALB. Deliberately split into an ECR
-phase and an infrastructure phase: a single stack/apply can't create an
+phase and an infrastructure phase: a single apply can't create an
 empty image repository, wait for a human to push an image, and then
 stand up an ECS service that needs that image to exist. A working
 example for customer-managed infrastructure, not a supported production
@@ -310,12 +283,12 @@ distinction as real, not a formality.
 ## CI
 
 GitHub Actions on every push/PR:
-- **CloudFormation**: `cfn-lint` + Checkov
+- **StackSet template**: `cfn-lint` + Checkov on the CloudFormation body
+  that `member-baseline` deploys to each member account
 - **Terraform**: `terraform fmt -check`, `terraform validate`, `tflint`,
   Checkov
 - **Python and policies**: Lambda sources compile, `policies/**/*.json`
-  parses, each Lambda's CloudFormation and Terraform copies are
-  byte-identical, and the unit tests in `tests/` pass
+  parses, and the unit tests in `tests/` pass
 - **Security scan**: Gitleaks over the full history, and Trivy for
   vulnerable dependencies and misconfigurations (results in the Security
   tab); also runs weekly
@@ -338,7 +311,7 @@ python -m pytest tests
 
 ## Contributing
 
-PRs welcome. New templates should:
+PRs welcome. New modules should:
 - Support both AWS commercial and GovCloud partitions
 - Include a README with what it does, how it works, and deployment steps
 - Pass the existing CI (lint + Checkov) before merge

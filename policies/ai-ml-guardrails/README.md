@@ -4,7 +4,7 @@ A library of preventive Service Control Policies for AI/ML workloads on
 AWS: protecting Bedrock's audit trail, optionally restricting which
 foundation models can be invoked, and locking down SageMaker notebook
 instances. Same structure as [`scp-guardrails`](../scp-guardrails/) —
-standalone JSON, or deploy/attach via CloudFormation or Terraform.
+standalone JSON, or deploy/attach via Terraform.
 
 ## Policies included
 
@@ -25,7 +25,7 @@ standalone JSON, or deploy/attach via CloudFormation or Terraform.
   at another bucket or disabling text delivery), since that is the same
   `PutModelInvocationLoggingConfiguration` call the enforcement Lambda
   itself needs. Pair it with
-  [`bedrock-logging-enforcement`](../../cloudformation/bedrock-logging-enforcement/)
+  [`bedrock-logging-enforcement`](../../terraform/bedrock-logging-enforcement/)
   to detect and revert that.
 - **Bedrock Guardrails** (content filtering, PII redaction, topic
   restrictions) are easy to configure and easy to quietly delete later.
@@ -54,18 +54,6 @@ aws organizations create-policy \
 aws organizations attach-policy \
   --policy-id p-xxxxxxxx \
   --target-id ou-xxxx-xxxxxxxx
-```
-
-## Using CloudFormation
-
-```bash
-aws cloudformation deploy \
-  --template-file cloudformation/ai-ml-guardrails/template.yaml \
-  --stack-name ai-ml-guardrails \
-  --parameter-overrides \
-      TargetIds=ou-abcd-11111111,123456789012 \
-      EnableRestrictBedrockFoundationModels=true \
-      AllowedBedrockModelPatterns=anthropic.claude*,amazon.titan*
 ```
 
 ## Using Terraform

@@ -15,8 +15,7 @@ listen:
   host: 0.0.0.0
   port: 8080
   # The internal hostname developers will reach the gateway at - must
-  # match the CFN/Terraform GatewayPublicHostname parameter, the ACM
-  # certificate's name, and your IdP app's redirect URI.
+  # match the ACM certificate's name and your IdP app's redirect URI.
   public_url: https://REPLACE_ME_claude-gateway.internal.example.com
   # The ALB's subnet CIDRs (the PrivateSubnetIds you pass to the
   # template). The gateway only honors X-Forwarded-For from these
@@ -53,8 +52,8 @@ store:
 
 upstreams:
   - provider: bedrock
-    # Must match the region you deployed the CloudFormation/Terraform
-    # stack in, so the task role's IAM policy ARNs cover it.
+    # Must match the region you deployed the Terraform
+    # module in, so the task role's IAM policy ARNs cover it.
     region: REPLACE_ME_us-east-1
     auth: {} # AWS default credential chain: the ECS task role
 
