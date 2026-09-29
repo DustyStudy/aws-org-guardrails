@@ -53,10 +53,15 @@ locals {
         }
       },
       {
+        # CreateRole is included so nobody can create a role whose name
+        # matches an exempt principal and inherit its exemption. The
+        # policies module requires every exempt role to be covered by a
+        # protected prefix for the same reason.
         Sid    = "DenyProtectedRoleChanges"
         Effect = "Deny"
         Action = [
           "iam:AttachRolePolicy",
+          "iam:CreateRole",
           "iam:DeleteRole",
           "iam:DeleteRolePermissionsBoundary",
           "iam:DeleteRolePolicy",

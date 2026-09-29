@@ -74,6 +74,31 @@ run "rejects_non_role_exempt_principals" {
   expect_failures = [var.exempt_principal_arns]
 }
 
+run "rejects_exempt_roles_that_are_not_protected" {
+  command = plan
+
+  variables {
+    # Anyone could create a role named "admin" and inherit the exemption.
+    exempt_principal_arns = ["arn:aws:iam::*:role/admin"]
+  }
+
+  expect_failures = [var.exempt_principal_arns]
+}
+
+run "accepts_exempt_roles_under_a_custom_protected_prefix" {
+  command = plan
+
+  variables {
+    exempt_principal_arns        = ["arn:aws:iam::*:role/ProwlerScan", "arn:aws:iam::*:role/stacksets-exec-*"]
+    protected_role_name_prefixes = ["OrganizationAccountAccessRole", "security-", "ProwlerScan", "stacksets-exec-"]
+  }
+
+  assert {
+    condition     = strcontains(output.scp_policies["core"], "role/stacksets-exec-*")
+    error_message = "Custom protected prefixes should render into the protected-role statement."
+  }
+}
+
 run "rejects_root_delegated_path" {
   command = plan
 

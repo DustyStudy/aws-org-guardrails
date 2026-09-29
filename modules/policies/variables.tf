@@ -42,6 +42,20 @@ variable "exempt_principal_arns" {
     ])
     error_message = "Every exempt principal ARN must use the same partition as var.partition."
   }
+
+  # The exemption matches roles by name. If anyone could create or change a
+  # role with that name, they could give themselves the exemption. Requiring
+  # each exempt role to fall under a protected prefix (which denies
+  # iam:CreateRole and every change to the role) closes that path.
+  validation {
+    condition = var.exempt_principal_arns == null ? true : alltrue([
+      for arn in var.exempt_principal_arns : anytrue([
+        for prefix in var.protected_role_name_prefixes :
+        startswith(element(split(":role/", arn), 1), prefix)
+      ])
+    ])
+    error_message = "Every exempt role name must start with one of protected_role_name_prefixes, or anyone could create a role with that name and inherit the exemption."
+  }
 }
 
 variable "allowed_regions" {

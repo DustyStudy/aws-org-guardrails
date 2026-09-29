@@ -20,8 +20,8 @@ modules deploy to commercial regions and GovCloud.
   against requests such as "a workload role calls `cloudtrail:StopLogging`"
   and asserts the outcome. Plan-time `terraform test` covers inputs,
   AWS limits and wiring.
-- **Result:** 81 Python tests (policy behavior plus the evaluator's own
-  semantics) and 28 `terraform test` runs. IAM Access Analyzer reports 0
+- **Result:** 83 Python tests (policy behavior plus the evaluator's own
+  semantics) and 30 `terraform test` runs. IAM Access Analyzer reports 0
   findings on every rendered policy in both the commercial and GovCloud
   partitions. The module tests run against the
   oldest and newest supported Terraform on every push. Mutation checks confirm
@@ -50,7 +50,7 @@ the guardrail protects.
 | `core` | Deny `organizations:LeaveOrganization` | No |
 | | Deny region opt-in and opt-out | Yes |
 | | Deny everything to the member account root user | No |
-| | Deny changes to protected roles (`OrganizationAccountAccessRole`, `security-*`) | Yes |
+| | Deny creating or changing protected roles (`OrganizationAccountAccessRole`, `security-*`); every exempt role must be protected | Yes |
 | | Deny creating IAM users, access keys and console passwords (optional) | Yes |
 | `security-services` | Deny stopping or changing CloudTrail and AWS Config recording | Yes |
 | | Deny disabling GuardDuty (including suppression filters), Security Hub and Access Analyzer | Yes |
@@ -76,7 +76,7 @@ rendered document works in every account.
 
 ```hcl
 module "scp_baseline" {
-  source = "github.com/DustyStudy/aws-org-guardrails//modules/scp-baseline?ref=v0.1.1"
+  source = "github.com/DustyStudy/aws-org-guardrails//modules/scp-baseline?ref=v0.2.0"
 
   target_ids = ["ou-ab12-cdefgh34"]
   exempt_principal_arns = [
