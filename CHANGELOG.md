@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 uses [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-09-29
+
+### Fixed
+
+- Permissions boundary could not be created: IAM's `CreatePolicy` rejects a
+  policy variable in the account field of a resource ARN ("The policy failed
+  legacy parsing"), which IAM Access Analyzer and the policy simulator both
+  accept. Resource and NotResource ARNs now use `*` for the account; the
+  `iam:PermissionsBoundary` condition keeps `${aws:PrincipalAccount}`.
+- The test evaluator now rejects a policy variable in a resource ARN's
+  account field, matching IAM.
+
 ## [0.2.0] - 2026-09-29
 
 ### Security
@@ -47,6 +59,7 @@ uses [Semantic Versioning](https://semver.org/).
 - CI: fmt, validate, TFLint, terraform test on Terraform 1.9 and 1.16,
   ruff, pytest, Checkov, Trivy and Gitleaks.
 
+[0.2.1]: https://github.com/DustyStudy/aws-org-guardrails/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/DustyStudy/aws-org-guardrails/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/DustyStudy/aws-org-guardrails/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/DustyStudy/aws-org-guardrails/releases/tag/v0.1.0
