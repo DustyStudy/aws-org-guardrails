@@ -18,6 +18,7 @@ output to evaluate the policies.
 | `boundary_policy_name` | `"workload-permissions-boundary"` | Boundary policy name the boundary refers to itself by. |
 | `boundary_policy_path` | `"/"` | Boundary policy path. |
 | `delegated_role_path` | `"/workload/"` | Path where bounded principals may manage and pass roles. |
+| `service_linked_role_services` | ECS, EKS, ELB, RDS, Auto Scaling and others | Services whose service-linked roles bounded principals may create. |
 
 ## Outputs
 

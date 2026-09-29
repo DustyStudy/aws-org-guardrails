@@ -12,15 +12,34 @@ locals {
 
   boundary_arn  = "arn:${local.p}:iam::${local.account}:policy${var.boundary_policy_path}${var.boundary_policy_name}"
   delegated_arn = "arn:${local.p}:iam::${local.account}:role${var.delegated_role_path}*"
+  slr_arns = [
+    for service in var.service_linked_role_services :
+    "arn:${local.p}:iam::${local.account}:role/aws-service-role/${service}/*"
+  ]
 
   boundary_statements = [
     {
-      # A boundary is a ceiling, not a grant, so Allow * is safe here: the
-      # statements below carve out the escalation paths.
-      Sid      = "AllowWithinBoundary"
+      # A boundary is a ceiling, not a grant, so a broad Allow is safe here:
+      # the Deny statements below carve out the escalation paths. PassRole and
+      # service-linked role creation are left out of the broad Allow and
+      # granted on scoped resources instead, so the Allow is safe on its own
+      # and IAM Access Analyzer reports no findings for it.
+      Sid       = "AllowWithinBoundary"
+      Effect    = "Allow"
+      NotAction = ["iam:PassRole", "iam:CreateServiceLinkedRole"]
+      Resource  = "*"
+    },
+    {
+      Sid      = "AllowPassDelegatedRoles"
       Effect   = "Allow"
-      Action   = "*"
-      Resource = "*"
+      Action   = "iam:PassRole"
+      Resource = local.delegated_arn
+    },
+    {
+      Sid      = "AllowServiceLinkedRoles"
+      Effect   = "Allow"
+      Action   = "iam:CreateServiceLinkedRole"
+      Resource = local.slr_arns
     },
     {
       # A principal inside the boundary can only create principals that are

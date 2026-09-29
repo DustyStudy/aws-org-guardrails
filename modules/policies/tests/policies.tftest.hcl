@@ -106,3 +106,13 @@ run "boundary_only_render_when_no_exempt_principals" {
     error_message = "Without exempt principals only the boundary should render."
   }
 }
+
+run "rejects_non_service_principals_for_service_linked_roles" {
+  command = plan
+
+  variables {
+    service_linked_role_services = ["ecs"]
+  }
+
+  expect_failures = [var.service_linked_role_services]
+}

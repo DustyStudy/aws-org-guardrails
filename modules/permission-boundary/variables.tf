@@ -16,6 +16,12 @@ variable "delegated_role_path" {
   default     = "/workload/"
 }
 
+variable "service_linked_role_services" {
+  description = "Service principals whose service-linked roles bounded principals may create. Null keeps the policies module default."
+  type        = list(string)
+  default     = null
+}
+
 variable "tags" {
   description = "Tags applied to the policy."
   type        = map(string)

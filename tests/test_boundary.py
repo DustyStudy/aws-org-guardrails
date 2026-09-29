@@ -85,3 +85,20 @@ def test_govcloud_boundary_uses_govcloud_arns(govcloud):
         decide(govcloud, "iam:CreateRole", gov_app, **{"iam:PermissionsBoundary": BOUNDARY_ARN})
         is Decision.EXPLICIT_DENY
     )
+
+
+@pytest.mark.parametrize(
+    ("service", "expected"),
+    [("ecs.amazonaws.com", Decision.ALLOW), ("sso.amazonaws.com", Decision.IMPLICIT_DENY)],
+)
+def test_service_linked_roles_only_for_listed_services(commercial, service, expected):
+    arn = f"arn:aws:iam::{ACCOUNT}:role/aws-service-role/{service}/AWSServiceRole"
+    assert decide(commercial, "iam:CreateServiceLinkedRole", arn) is expected
+
+
+def test_pass_role_is_not_granted_by_the_broad_allow(commercial):
+    # Access Analyzer flags PassRole on "*" even when a Deny narrows it, so
+    # the broad Allow excludes PassRole and a scoped Allow grants it back.
+    broad = next(s for s in commercial.boundary["Statement"] if s["Sid"] == "AllowWithinBoundary")
+    assert "iam:PassRole" in broad["NotAction"]
+    assert "iam:CreateServiceLinkedRole" in broad["NotAction"]
