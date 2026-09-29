@@ -16,6 +16,10 @@ jobs:
     name: Secrets (Gitleaks)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # gitleaks-action lists the pull request's commits to scan only those.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,6 +56,8 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      # upload-sarif reads the workflow run to label the upload.
+      actions: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
