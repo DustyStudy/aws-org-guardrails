@@ -119,3 +119,29 @@ variable "delegated_role_path" {
     error_message = "delegated_role_path must start and end with a slash and cannot be \"/\" (that would include every role)."
   }
 }
+
+variable "service_linked_role_services" {
+  description = <<-EOT
+    Service principals for which boundary-bound principals may create
+    service-linked roles, such as ecs.amazonaws.com. A team adopting a service
+    that needs a new service-linked role either adds it here or asks the
+    platform team to create the role once per account.
+  EOT
+  type        = list(string)
+  default = [
+    "autoscaling.amazonaws.com",
+    "ecs.amazonaws.com",
+    "eks.amazonaws.com",
+    "eks-nodegroup.amazonaws.com",
+    "elasticache.amazonaws.com",
+    "elasticloadbalancing.amazonaws.com",
+    "rds.amazonaws.com",
+    "spot.amazonaws.com",
+  ]
+  nullable = false
+
+  validation {
+    condition     = alltrue([for s in var.service_linked_role_services : can(regex("^[a-z0-9.-]+[.]amazonaws[.]com$", s))])
+    error_message = "service_linked_role_services entries must be service principals such as ecs.amazonaws.com."
+  }
+}

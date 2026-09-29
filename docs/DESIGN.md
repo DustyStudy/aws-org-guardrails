@@ -95,6 +95,28 @@ Deny statements close the known ways to climb out of the ceiling:
 4. changing or passing roles outside the delegated path,
 5. touching Organizations or account settings.
 
+### What Access Analyzer caught
+
+The first version used a plain `Allow * on *`. The Deny statements already
+limited `iam:PassRole` to the delegated path, and the behavior tests passed.
+IAM Access Analyzer still reported a SECURITY_WARNING
+(`PASS_ROLE_WITH_STAR_IN_ACTION_AND_RESOURCE`) and a warning for
+`iam:CreateServiceLinkedRole` on `*`, because it judges each Allow statement
+on its own.
+
+That is a fair objection, not a false positive: the safety of the boundary
+depended on a separate Deny staying correct. The broad Allow now uses
+`NotAction` to leave out `iam:PassRole` and `iam:CreateServiceLinkedRole`.
+Two scoped Allow statements grant them back: PassRole only for roles under
+the delegated path, and service-linked roles only for the services in
+`service_linked_role_services`. The Deny on PassRole stays as a second layer.
+Access Analyzer now reports 0 findings, and
+`test_pass_role_is_not_granted_by_the_broad_allow` keeps it that way.
+
+The trade-off is that a team adopting a service that needs a new
+service-linked role must add it to the list (or have the platform team create
+the role once).
+
 The alternative, a boundary that lists allowed services, is stricter but has
 to be updated every time a team adopts a new service. It also tends to grow
 until it is effectively `*` anyway.
@@ -135,6 +157,7 @@ bugs was introduced into the policies and the suite was run against it:
 - **Declarative policies for EC2:** enforce the IMDS default and block public
   AMI sharing at the service level rather than per API call.
 - **Access Analyzer in CI:** run `scripts/validate_policies.py` from a
-  read-only OIDC role on every pull request.
+  read-only OIDC role on every pull request. It already caught one issue by
+  hand (see above).
 - **Live verification:** attach the bundles to a sandbox OU and record the
   results the way the remediation and evidence projects do.

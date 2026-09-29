@@ -7,6 +7,8 @@ module "policies" {
   boundary_policy_name = var.policy_name
   boundary_policy_path = var.policy_path
   delegated_role_path  = var.delegated_role_path
+
+  service_linked_role_services = var.service_linked_role_services
 }
 
 resource "aws_iam_policy" "boundary" {

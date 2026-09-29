@@ -16,6 +16,7 @@ and path must be the same in every account.
 | `policy_name` | `"workload-permissions-boundary"` | Policy name. |
 | `policy_path` | `"/"` | Policy path. |
 | `delegated_role_path` | `"/workload/"` | Path where bounded principals may create, change and pass roles. |
+| `service_linked_role_services` | `null` (policies default) | Services whose service-linked roles bounded principals may create. |
 | `tags` | `{}` | Tags for the policy. |
 
 ## Outputs

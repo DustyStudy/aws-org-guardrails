@@ -20,8 +20,10 @@ modules deploy to commercial regions and GovCloud.
   against requests such as "a workload role calls `cloudtrail:StopLogging`"
   and asserts the outcome. Plan-time `terraform test` covers inputs,
   AWS limits and wiring.
-- **Result:** 78 Python tests (policy behavior plus the evaluator's own
-  semantics) and 26 `terraform test` runs. The module tests run against the
+- **Result:** 81 Python tests (policy behavior plus the evaluator's own
+  semantics) and 28 `terraform test` runs. IAM Access Analyzer reports 0
+  findings on every rendered policy in both the commercial and GovCloud
+  partitions. The module tests run against the
   oldest and newest supported Terraform on every push. Mutation checks confirm
   the suite catches an inverted exemption, a hard-coded partition, an
   unscoped IMDSv2 rule and a missing global-service carve-out
@@ -64,6 +66,7 @@ application teams and pipelines) can do:
 - Any role or user they create must carry the same boundary.
 - They cannot remove the boundary or edit the boundary policy.
 - They can only create, change or `PassRole` roles under a delegated path (`/workload/` by default).
+- They can only create service-linked roles for a listed set of services.
 - Organizations and account settings are out of bounds.
 
 The boundary uses `${aws:PrincipalAccount}` instead of an account ID, so one
@@ -73,7 +76,7 @@ rendered document works in every account.
 
 ```hcl
 module "scp_baseline" {
-  source = "github.com/DustyStudy/aws-org-guardrails//modules/scp-baseline?ref=v0.1.0"
+  source = "github.com/DustyStudy/aws-org-guardrails//modules/scp-baseline?ref=v0.1.1"
 
   target_ids = ["ou-ab12-cdefgh34"]
   exempt_principal_arns = [
@@ -122,8 +125,9 @@ Trivy and Gitleaks.
 ## Status and limits
 
 - **Not yet deployed to a live organization.** Everything above is tested at
-  plan time and against the rendered JSON. Access Analyzer validation is
-  scripted but not yet part of CI, because it needs AWS credentials.
+  plan time, against the rendered JSON, and with IAM Access Analyzer
+  (`scripts/validate_policies.py`, run by hand on 2026-09-29: 0 findings).
+  Access Analyzer is not part of CI yet, because it needs AWS credentials.
 - SCPs do not restrict service-linked roles or the management account.
 - The evaluator models one policy layer. It does not model the SCP
   inheritance chain, resource policies or session policies.
