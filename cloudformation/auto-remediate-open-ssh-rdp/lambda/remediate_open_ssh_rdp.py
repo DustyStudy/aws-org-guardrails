@@ -156,7 +156,11 @@ def _revoke_from_group(group_id, source):
 def _handle_cloudtrail_event(event):
     detail = event.get("detail", {})
     request_params = detail.get("requestParameters", {}) or {}
-    group_id = request_params.get("groupId")
+    # AuthorizeSecurityGroupIngress records a flat lowerCamelCase groupId.
+    # ModifySecurityGroupRules wraps its request instead:
+    # requestParameters.ModifySecurityGroupRulesRequest.GroupId.
+    modify_request = request_params.get("ModifySecurityGroupRulesRequest") or {}
+    group_id = request_params.get("groupId") or modify_request.get("GroupId")
     if not group_id:
         logger.warning("No groupId found in CloudTrail event detail, skipping")
         return

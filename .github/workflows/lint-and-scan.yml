@@ -80,6 +80,13 @@ jobs:
       - name: Compile all Python sources
         run: python -m compileall -q cloudformation terraform
 
+      - name: Unit-test the Lambdas
+        # boto3 clients are replaced with mocks in tests/, so no AWS access
+        # is needed.
+        run: |
+          pip install "pytest==9.1.1" "boto3==1.43.104"
+          python -m pytest tests -q
+
       - name: Validate policy JSON
         run: |
           for f in policies/*/*.json; do

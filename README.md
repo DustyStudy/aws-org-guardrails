@@ -314,8 +314,27 @@ GitHub Actions on every push/PR:
 - **Terraform**: `terraform fmt -check`, `terraform validate`, `tflint`,
   Checkov
 - **Python and policies**: Lambda sources compile, `policies/**/*.json`
-  parses, and each Lambda's CloudFormation and Terraform copies are
-  byte-identical
+  parses, each Lambda's CloudFormation and Terraform copies are
+  byte-identical, and the unit tests in `tests/` pass
+- **Security scan**: Gitleaks over the full history, and Trivy for
+  vulnerable dependencies and misconfigurations (results in the Security
+  tab); also runs weekly
+
+## Tests
+
+`tests/` holds pytest suites for the Lambdas that act on their own:
+`auto-remediate-open-ssh-rdp`, `iam-credential-hygiene` and
+`wiz-finding-bridge`. The boto3 clients are replaced with mocks, so the
+tests need no AWS account. They cover what each function must and must
+not touch, for example: SSH open to `10.0.0.0/8` is left alone, only the
+`0.0.0.0/0` range is revoked from a mixed rule, a break-glass user whose
+tags can't be read keeps their keys, and a webhook with the wrong token
+gets a 401.
+
+```sh
+pip install pytest boto3
+python -m pytest tests
+```
 
 ## Contributing
 
