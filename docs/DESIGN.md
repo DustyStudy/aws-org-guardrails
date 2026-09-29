@@ -131,6 +131,25 @@ The trade-off is that a team adopting a service that needs a new
 service-linked role must add it to the list (or have the platform team create
 the role once).
 
+### What the first live deployment caught
+
+Access Analyzer, the IAM policy simulator and the behavior tests all
+accepted a boundary whose resource ARNs used `${aws:PrincipalAccount}` for
+the account (`arn:aws:iam::${aws:PrincipalAccount}:role/workload/*`). The
+first real `CreatePolicy` call rejected it: `MalformedPolicyDocument: The
+policy failed legacy parsing`. Creating each statement on its own showed the
+rule: IAM does not accept a policy variable in the account field of a
+resource ARN, while the same variable in a condition value is fine.
+
+The resource ARNs now use `*` for the account. That matches the same
+resources, because IAM API calls only ever act on the caller's own account.
+The `iam:PermissionsBoundary` condition, which needs the exact ARN, keeps
+`${aws:PrincipalAccount}`. The evaluator now raises on a policy variable in a
+resource ARN's account field, so the tests fail the way IAM does.
+
+The lesson: static validators are not the API. Only a real deployment proves
+that a policy can be created.
+
 The alternative, a boundary that lists allowed services, is stricter but has
 to be updated every time a team adopts a new service. It also tends to grow
 until it is effectively `*` anyway.

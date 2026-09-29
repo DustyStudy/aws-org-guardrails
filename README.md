@@ -20,7 +20,7 @@ modules deploy to commercial regions and GovCloud.
   against requests such as "a workload role calls `cloudtrail:StopLogging`"
   and asserts the outcome. Plan-time `terraform test` covers inputs,
   AWS limits and wiring.
-- **Result:** 83 Python tests (policy behavior plus the evaluator's own
+- **Result:** 86 Python tests (policy behavior plus the evaluator's own
   semantics) and 30 `terraform test` runs. IAM Access Analyzer reports 0
   findings on every rendered policy in both the commercial and GovCloud
   partitions. The module tests run against the
@@ -69,14 +69,15 @@ application teams and pipelines) can do:
 - They can only create service-linked roles for a listed set of services.
 - Organizations and account settings are out of bounds.
 
-The boundary uses `${aws:PrincipalAccount}` instead of an account ID, so one
-rendered document works in every account.
+The boundary contains no account IDs (resource ARNs use `*`, and the
+boundary check uses `${aws:PrincipalAccount}`), so one rendered document
+works in every account.
 
 ## Usage
 
 ```hcl
 module "scp_baseline" {
-  source = "github.com/DustyStudy/aws-org-guardrails//modules/scp-baseline?ref=v0.2.0"
+  source = "github.com/DustyStudy/aws-org-guardrails//modules/scp-baseline?ref=v0.2.1"
 
   target_ids = ["ou-ab12-cdefgh34"]
   exempt_principal_arns = [
