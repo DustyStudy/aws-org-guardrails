@@ -4,11 +4,11 @@ output "scp_policies" {
 }
 
 output "permissions_boundary_policy" {
-  description = "Permissions boundary policy JSON. Account-agnostic: it uses $${aws:PrincipalAccount}."
+  description = "Permissions boundary policy JSON. Account-agnostic: no literal account IDs."
   value       = local.permissions_boundary_policy
 }
 
 output "boundary_policy_arn_template" {
-  description = "ARN of the boundary policy with $${aws:PrincipalAccount} in place of the account ID, as the policies reference it."
-  value       = local.boundary_arn
+  description = "ARN of the boundary policy with $${aws:PrincipalAccount} in place of the account ID, as the iam:PermissionsBoundary condition references it."
+  value       = local.boundary_condition_arn
 }

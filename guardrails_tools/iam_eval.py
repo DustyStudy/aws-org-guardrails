@@ -12,6 +12,9 @@ It is deliberately not a full IAM simulator:
   new statement can never pass a test just because the evaluator skipped it.
 * Multi-valued context keys and ``ForAnyValue``/``ForAllValues`` are not
   supported, for the same reason.
+* Resource ARNs with a policy variable in the account field raise too. IAM
+  rejects them at CreatePolicy ("failed legacy parsing") even though IAM
+  Access Analyzer and the policy simulator accept them.
 * It models one policy layer at a time. Resource policies, session policies
   and the SCP inheritance chain are out of scope.
 
@@ -190,6 +193,15 @@ def _any_pattern_matches(patterns: Iterable[str], value: str, request: Request, 
     return False
 
 
+def _check_resource_arns(patterns: Iterable[str]) -> None:
+    for pattern in patterns:
+        parts = pattern.split(":", 5)
+        if len(parts) == 6 and "${" in parts[4]:
+            raise UnsupportedPolicyFeature(
+                f"{pattern!r}: IAM rejects a policy variable in the account field of a resource ARN"
+            )
+
+
 def statement_applies(statement: Mapping[str, Any], request: Request) -> bool:
     known = {"Sid", "Effect", "Action", "NotAction", "Resource", "NotResource", "Condition"}
     unknown = set(statement) - known
@@ -204,6 +216,8 @@ def statement_applies(statement: Mapping[str, Any], request: Request) -> bool:
             return False
     else:
         raise UnsupportedPolicyFeature("statement has neither Action nor NotAction")
+
+    _check_resource_arns(_as_list(statement.get("Resource", statement.get("NotResource", []))))
 
     if "Resource" in statement:
         if not _any_pattern_matches(_as_list(statement["Resource"]), request.resource, request, case_sensitive=True):

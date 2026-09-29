@@ -118,17 +118,39 @@ def test_multiple_condition_blocks_are_anded():
 
 
 def test_policy_variables_resolve_from_context():
-    deny = {"Effect": "Deny", "Action": "*", "Resource": "arn:aws:iam::${aws:PrincipalAccount}:policy/b"}
-    ctx = {"aws:PrincipalAccount": "111122223333"}
-    own = Request("iam:DeletePolicy", "arn:aws:iam::111122223333:policy/b", ctx)
-    other = Request("iam:DeletePolicy", "arn:aws:iam::444455556666:policy/b", ctx)
+    deny = {"Effect": "Deny", "Action": "*", "Resource": "arn:aws:iam::*:user/${aws:username}"}
+    ctx = {"aws:username": "alice"}
+    own = Request("iam:DeleteLoginProfile", "arn:aws:iam::111122223333:user/alice", ctx)
+    other = Request("iam:DeleteLoginProfile", "arn:aws:iam::111122223333:user/bob", ctx)
     assert scp_decision([policy(deny)], own) is Decision.EXPLICIT_DENY
     assert scp_decision([policy(deny)], other) is Decision.ALLOW
 
 
+def test_policy_variables_in_condition_values_resolve():
+    deny = {
+        "Effect": "Deny",
+        "Action": "iam:CreateRole",
+        "Resource": "*",
+        "Condition": {"StringNotEquals": {"iam:PermissionsBoundary": "arn:aws:iam::${aws:PrincipalAccount}:policy/b"}},
+    }
+    ctx = {"aws:PrincipalAccount": "111122223333"}
+    good = Request("iam:CreateRole", context={**ctx, "iam:PermissionsBoundary": "arn:aws:iam::111122223333:policy/b"})
+    other = Request("iam:CreateRole", context={**ctx, "iam:PermissionsBoundary": "arn:aws:iam::444455556666:policy/b"})
+    assert scp_decision([policy(deny)], good) is Decision.ALLOW
+    assert scp_decision([policy(deny)], other) is Decision.EXPLICIT_DENY
+
+
+@pytest.mark.parametrize("element", ["Resource", "NotResource"])
+def test_policy_variable_in_resource_account_field_is_rejected(element):
+    # IAM's CreatePolicy fails these with "failed legacy parsing".
+    deny = {"Effect": "Deny", "Action": "*", element: "arn:aws:iam::${aws:PrincipalAccount}:policy/b"}
+    with pytest.raises(UnsupportedPolicyFeature):
+        evaluate([policy(deny)], Request("iam:DeletePolicy", "arn:aws:iam::111122223333:policy/b"))
+
+
 def test_unresolvable_policy_variable_never_matches():
-    deny = {"Effect": "Deny", "Action": "*", "Resource": "arn:aws:iam::${aws:PrincipalAccount}:policy/b"}
-    req = Request("iam:DeletePolicy", "arn:aws:iam::111122223333:policy/b")
+    deny = {"Effect": "Deny", "Action": "*", "Resource": "arn:aws:iam::*:user/${aws:username}"}
+    req = Request("iam:DeleteLoginProfile", "arn:aws:iam::111122223333:user/alice")
     assert scp_decision([policy(deny)], req) is Decision.ALLOW
 
 

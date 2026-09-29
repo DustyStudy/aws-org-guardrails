@@ -3,18 +3,27 @@
 #
 # The boundary allows everything and then removes the paths to privilege
 # escalation. Identity policies still decide what a principal can actually
-# do; the boundary only caps it. The ARNs use ${aws:PrincipalAccount} rather
-# than a literal account ID, so one rendered document works in every member
-# account.
+# do; the boundary only caps it. No ARN contains a literal account ID, so
+# one rendered document works in every member account:
+#
+# * Resource and NotResource ARNs use "*" for the account. IAM API calls only
+#   ever act on the caller's own account, so this matches exactly the same
+#   resources. (IAM's CreatePolicy rejects a policy variable in the account
+#   field of a resource ARN with "failed legacy parsing", even though IAM
+#   Access Analyzer and the policy simulator accept it.)
+# * The iam:PermissionsBoundary condition needs the exact ARN, and policy
+#   variables are allowed in condition values, so it uses
+#   ${aws:PrincipalAccount}.
 
 locals {
-  account = "$${aws:PrincipalAccount}"
+  boundary_path_and_name = "policy${var.boundary_policy_path}${var.boundary_policy_name}"
 
-  boundary_arn  = "arn:${local.p}:iam::${local.account}:policy${var.boundary_policy_path}${var.boundary_policy_name}"
-  delegated_arn = "arn:${local.p}:iam::${local.account}:role${var.delegated_role_path}*"
+  boundary_arn           = "arn:${local.p}:iam::*:${local.boundary_path_and_name}"
+  boundary_condition_arn = "arn:${local.p}:iam::$${aws:PrincipalAccount}:${local.boundary_path_and_name}"
+  delegated_arn          = "arn:${local.p}:iam::*:role${var.delegated_role_path}*"
   slr_arns = [
     for service in var.service_linked_role_services :
-    "arn:${local.p}:iam::${local.account}:role/aws-service-role/${service}/*"
+    "arn:${local.p}:iam::*:role/aws-service-role/${service}/*"
   ]
 
   boundary_statements = [
@@ -54,7 +63,7 @@ locals {
       ]
       Resource = "*"
       Condition = {
-        StringNotEquals = { "iam:PermissionsBoundary" = local.boundary_arn }
+        StringNotEquals = { "iam:PermissionsBoundary" = local.boundary_condition_arn }
       }
     },
     {

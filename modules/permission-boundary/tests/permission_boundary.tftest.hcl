@@ -45,7 +45,7 @@ run "delegated_path_scopes_role_management" {
     condition = one([
       for s in jsondecode(aws_iam_policy.boundary.policy).Statement : s.NotResource
       if s.Sid == "DenyRoleChangesOutsideDelegatedPath"
-    ]) == "arn:aws:iam::$${aws:PrincipalAccount}:role/apps/*"
+    ]) == "arn:aws:iam::*:role/apps/*"
     error_message = "Role management must be limited to the delegated path."
   }
 }
@@ -61,7 +61,7 @@ run "service_linked_roles_follow_the_input" {
     condition = one([
       for s in jsondecode(aws_iam_policy.boundary.policy).Statement : s.Resource
       if s.Sid == "AllowServiceLinkedRoles"
-    ]) == ["arn:aws:iam::$${aws:PrincipalAccount}:role/aws-service-role/ecs.amazonaws.com/*"]
+    ]) == ["arn:aws:iam::*:role/aws-service-role/ecs.amazonaws.com/*"]
     error_message = "Service-linked role creation must be scoped to the listed services."
   }
 }
