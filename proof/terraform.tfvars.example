@@ -1,0 +1,3 @@
+management_profile = "management-admin"
+sandbox_profile    = "sandbox-admin"
+sandbox_ou_id      = "ou-xxxx-xxxxxxxx"
