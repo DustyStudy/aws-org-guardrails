@@ -15,39 +15,6 @@ permissions:
   contents: read
 
 jobs:
-  stackset-template:
-    name: StackSet template (cfn-lint + Checkov)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-        with:
-          persist-credentials: false # this job never pushes back to the repo
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v6
-        with:
-          python-version: "3.12"
-
-      - name: Install cfn-lint
-        run: pip install "cfn-lint==1.55.1"
-
-      - name: Run cfn-lint
-        # The Terraform member-baseline module deploys this CloudFormation
-        # template to every member account through a StackSet.
-        run: cfn-lint terraform/security-baseline-new-accounts/member-baseline/baseline-template.yaml
-
-      - name: Run Checkov
-        # Lives under terraform/, so the Terraform job's framework filter
-        # skips it, but it's a CloudFormation template that gets deployed
-        # into every member account.
-        uses: bridgecrewio/checkov-action@444c9db6fa75e2d9c19ebf1fde7322089be9009e # v12.3125.0
-        with:
-          file: terraform/security-baseline-new-accounts/member-baseline/baseline-template.yaml
-          framework: cloudformation
-          quiet: true
-
   python-and-policies:
     name: Python and policy JSON
     runs-on: ubuntu-latest

@@ -16,7 +16,7 @@ Quick start:
 
 ```hcl
 module "ai_ml_guardrails" {
-  source = "github.com/DustyStudy/aws-cloud-security-toolbox//terraform/ai-ml-guardrails"
+  source = "github.com/DustyStudy/aws-ai-guardrails//terraform/ai-ml-guardrails"
 
   target_ids                                = ["ou-abcd-11111111", "123456789012"]
   enable_restrict_bedrock_foundation_models = true

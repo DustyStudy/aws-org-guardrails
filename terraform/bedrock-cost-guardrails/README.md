@@ -24,7 +24,7 @@ Both notify the same SNS topic.
 
 ```hcl
 module "bedrock_cost_guardrails" {
-  source = "github.com/DustyStudy/aws-cloud-security-toolbox//terraform/bedrock-cost-guardrails"
+  source = "github.com/DustyStudy/aws-ai-guardrails//terraform/bedrock-cost-guardrails"
 
   notification_email       = "you@example.com"
   monthly_budget_limit_usd = 500

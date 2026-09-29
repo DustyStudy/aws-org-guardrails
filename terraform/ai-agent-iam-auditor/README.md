@@ -47,7 +47,7 @@ in a single SNS summary, noting how it was discovered.
 
 ```hcl
 module "ai_agent_iam_auditor" {
-  source = "github.com/DustyStudy/aws-cloud-security-toolbox//terraform/ai-agent-iam-auditor"
+  source = "github.com/DustyStudy/aws-ai-guardrails//terraform/ai-agent-iam-auditor"
 
   notification_email = "you@example.com"
 }

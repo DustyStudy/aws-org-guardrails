@@ -72,7 +72,7 @@ everything else, including the ECS service.
 
 ```hcl
 module "claude_apps_gateway" {
-  source = "github.com/DustyStudy/aws-cloud-security-toolbox//terraform/claude-apps-gateway"
+  source = "github.com/DustyStudy/aws-ai-guardrails//terraform/claude-apps-gateway"
 
   vpc_id                    = "vpc-xxxxxxxx"
   private_subnet_ids        = ["subnet-aaaa", "subnet-bbbb"]

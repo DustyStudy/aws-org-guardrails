@@ -3,8 +3,8 @@
 A library of preventive Service Control Policies for AI/ML workloads on
 AWS: protecting Bedrock's audit trail, optionally restricting which
 foundation models can be invoked, and locking down SageMaker notebook
-instances. Same structure as [`scp-guardrails`](../scp-guardrails/) —
-standalone JSON, or deploy/attach via Terraform.
+instances. Use the standalone JSON, or deploy and attach it via
+[`terraform/ai-ml-guardrails`](../../terraform/ai-ml-guardrails/).
 
 ## Policies included
 
@@ -60,7 +60,7 @@ aws organizations attach-policy \
 
 ```hcl
 module "ai_ml_guardrails" {
-  source = "github.com/DustyStudy/aws-cloud-security-toolbox//terraform/ai-ml-guardrails"
+  source = "github.com/DustyStudy/aws-ai-guardrails//terraform/ai-ml-guardrails"
 
   target_ids                                = ["ou-abcd-11111111", "123456789012"]
   enable_restrict_bedrock_foundation_models = true

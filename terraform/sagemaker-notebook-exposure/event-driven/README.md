@@ -28,7 +28,7 @@ By default the notebook is left **stopped** after remediation.
 
 ```hcl
 module "sagemaker_notebook_exposure_event_driven" {
-  source = "github.com/DustyStudy/aws-cloud-security-toolbox//terraform/sagemaker-notebook-exposure/event-driven"
+  source = "github.com/DustyStudy/aws-ai-guardrails//terraform/sagemaker-notebook-exposure/event-driven"
 
   notification_email = "you@example.com"
   auto_restart        = false

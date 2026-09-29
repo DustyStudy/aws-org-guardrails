@@ -32,7 +32,7 @@ doesn't reach.
 
 ```hcl
 module "sagemaker_notebook_exposure_config_rule" {
-  source = "github.com/DustyStudy/aws-cloud-security-toolbox//terraform/sagemaker-notebook-exposure/config-rule"
+  source = "github.com/DustyStudy/aws-ai-guardrails//terraform/sagemaker-notebook-exposure/config-rule"
 
   notification_email          = "you@example.com"
   maximum_execution_frequency = "TwentyFour_Hours"

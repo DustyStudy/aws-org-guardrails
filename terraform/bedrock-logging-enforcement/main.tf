@@ -78,7 +78,7 @@ resource "aws_sqs_queue" "dlq" {
 resource "aws_s3_bucket" "bedrock_logs" {
   # checkov:skip=CKV_AWS_18: Server access logging omitted for this
   # starter template - add an access-log bucket like the one in
-  # security-baseline-new-accounts/organization-trail/ if required.
+  # fedramp-terraform-library's org-cloudtrail module if required.
   # checkov:skip=CKV_AWS_144: Cross-region replication omitted for this
   # starter template - add if your compliance regime requires geographic
   # redundancy.

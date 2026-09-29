@@ -19,7 +19,7 @@ via SNS.
 
 ```hcl
 module "bedrock_logging_enforcement" {
-  source = "github.com/DustyStudy/aws-cloud-security-toolbox//terraform/bedrock-logging-enforcement"
+  source = "github.com/DustyStudy/aws-ai-guardrails//terraform/bedrock-logging-enforcement"
 
   notification_email = "you@example.com"
 }
