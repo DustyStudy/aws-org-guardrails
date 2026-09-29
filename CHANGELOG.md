@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Live proof: `proof/main.tf` deploys the guardrails to a sandbox OU and
+  `proof/probe.py` checks them with real API calls, recording which policy
+  type denied each one. First run: 31 of 31 probes matched
+  ([docs/PROOF.md](docs/PROOF.md)).
+
 ## [0.2.1] - 2026-09-29
 
 ### Fixed
