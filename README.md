@@ -55,7 +55,7 @@ aws-ai-guardrails/
 
 | Module | Type | What it does |
 |---|---|---|
-| [`ai-ml-guardrails`](#ai-ml-guardrails) | Preventive | SCPs protecting Bedrock logging and Guardrails, an optional model allow-list, and SageMaker notebook lockdown |
+| [`ai-ml-guardrails`](#ai-ml-guardrails) | Preventive | SCPs protecting Bedrock logging and Guardrails, an optional model allow-list, an optional deny of Bedrock to IAM users (LLMjacking), and SageMaker notebook lockdown |
 | [`bedrock-logging-enforcement`](#bedrock-logging-enforcement) | Auto-remediation | Re-enables Bedrock invocation logging if it's disabled |
 | [`ai-agent-iam-auditor`](#ai-agent-iam-auditor) | Detective | Flags over-permissioned IAM roles trusted by AI services or behind Bedrock Agent action groups |
 | [`bedrock-cost-guardrails`](#bedrock-cost-guardrails) | Detective | Budget ceiling and anomaly detection on Bedrock spend |
@@ -67,7 +67,9 @@ aws-ai-guardrails/
 A library of preventive Service Control Policies for AI/ML workloads:
 protect Bedrock's audit trail (deny disabling invocation logging, deny
 deleting Guardrails), optionally restrict Bedrock model invocation to an
-allow-listed set of foundation models, and lock down SageMaker notebook
+allow-listed set of foundation models, optionally deny Bedrock discovery
+and invocation to IAM users so leaked long-term keys can't be used for
+LLMjacking, and lock down SageMaker notebook
 instances (no direct internet access, no root access, VPC required, KMS
 encryption required). Use the standalone JSON in
 `policies/ai-ml-guardrails/`, or deploy and attach it via

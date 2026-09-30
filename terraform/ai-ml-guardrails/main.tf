@@ -39,6 +39,42 @@ locals {
     }]
   })
 
+  # Stolen long-term keys are validated and monetized through Bedrock within
+  # minutes: GetCallerIdentity, then ListFoundationModels and a burst of
+  # InvokeModel calls across Regions (Datadog Security Labs, 2026-09-18).
+  # Humans should reach Bedrock through Identity Center and workloads
+  # through roles, so an IAM user (access key, console password or Bedrock
+  # API key, which is also bound to an IAM user) has no business here.
+  # aws:PrincipalType is "User" only for IAM users, never for roles or
+  # federated sessions.
+  deny_bedrock_long_term_credentials_content = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid    = "DenyBedrockToIamUsers"
+      Effect = "Deny"
+      # Prefix wildcards are deliberate: InvokeModel* also covers
+      # InvokeModelWithResponseStream and the bidirectional stream (Converse
+      # and ConverseStream authorize as InvokeModel*), and ListFoundationModel*
+      # covers the agreement-offer listing used to enable a model.
+      Action = [
+        "bedrock:InvokeModel*",
+        "bedrock:CreateModelInvocationJob",
+        "bedrock:InvokeAgent",
+        "bedrock:CallWithBearerToken",
+        "bedrock:ListFoundationModel*",
+        "bedrock:GetFoundationModelAvailability",
+        "bedrock:PutFoundationModelEntitlement",
+      ]
+      Resource = "*"
+      Condition = merge(
+        { StringEquals = { "aws:PrincipalType" = "User" } },
+        length(var.bedrock_iam_user_exempt_principal_arns) > 0 ? {
+          ArnNotLike = { "aws:PrincipalArn" = var.bedrock_iam_user_exempt_principal_arns }
+        } : {}
+      )
+    }]
+  })
+
   lockdown_sagemaker_notebooks_content = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -103,6 +139,11 @@ locals {
       enabled     = var.enable_restrict_bedrock_foundation_models
       description = "Restricts Bedrock model invocation to an allow-listed set of foundation models."
       content     = local.restrict_bedrock_foundation_models_content
+    }
+    deny-bedrock-long-term-credentials = {
+      enabled     = var.enable_deny_bedrock_long_term_credentials
+      description = "Denies Bedrock model discovery, access and invocation to IAM users (long-term keys and Bedrock API keys)."
+      content     = local.deny_bedrock_long_term_credentials_content
     }
     lockdown-sagemaker-notebooks = {
       enabled     = var.enable_lockdown_sagemaker_notebooks

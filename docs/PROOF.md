@@ -13,11 +13,11 @@ Numbers are from a local run on 2026-09-29 (Terraform 1.16.4, Checkov
 
 | Check | Result |
 |---|---|
-| `terraform test` (`ai-ml-guardrails`) | 8 runs, 8 passed |
+| `terraform test` (`ai-ml-guardrails`) | 11 runs, 11 passed (2026-09-30) |
 | pytest (the three Lambdas) | 24 passed |
 | `terraform validate` | 7 of 7 roots valid |
 | Checkov (`--framework terraform`, 118 resources) | 331 passed, 0 failed, 23 skipped |
-| IAM Access Analyzer `ValidatePolicy` (`SERVICE_CONTROL_POLICY`, commercial partition) | 0 findings on each of the 4 SCPs |
+| IAM Access Analyzer `ValidatePolicy` (`SERVICE_CONTROL_POLICY`, commercial partition) | 0 findings on each of the 4 original SCPs; `deny-bedrock-long-term-credentials` (added 2026-09-30) not yet validated |
 | Trivy config scan, Gitleaks, `terraform fmt`, TFLint | Run in CI on every PR |
 
 Every Checkov skip is an inline `checkov:skip=<ID>: <reason>` comment next to
@@ -36,6 +36,9 @@ renders and checks the statements.
 | `notebooks_need_vpc_no_internet_no_root` | Notebooks with direct internet access, root access, or no VPC subnets are denied |
 | `sagemaker_requires_kms_keys` | Notebooks and training jobs without a volume or output KMS key are denied |
 | `model_allow_list_keeps_inference_profiles` | With the allow-list on, only the allowed models and inference profiles are exempt from the deny |
+| `bedrock_denied_to_iam_users_only` | The Bedrock deny keys only on `aws:PrincipalType = User` and covers invocation, Bedrock API keys, model discovery and model enablement |
+| `bedrock_iam_user_exemptions_render` | Exempt IAM users are carved out with `ArnNotLike` on `aws:PrincipalArn` |
+| `bedrock_exemption_must_be_an_iam_user` | An exemption that isn't an IAM user ARN is rejected at plan time |
 | `disabled_policies_are_not_created` | Turning every policy off creates no policies and no attachments |
 | `standalone_json_matches_module` | Each file in `policies/ai-ml-guardrails/` matches the policy the module renders, so the standalone JSON cannot drift |
 

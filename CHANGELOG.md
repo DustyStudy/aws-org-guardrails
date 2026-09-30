@@ -6,6 +6,17 @@ All notable changes to this repo are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `ai-ml-guardrails`: opt-in `deny-bedrock-long-term-credentials` SCP
+  (`enable_deny_bedrock_long_term_credentials`). Denies Bedrock
+  invocation, batch inference, agents, Bedrock API keys, model discovery
+  and model enablement to IAM users (`aws:PrincipalType = User`), with an
+  optional `bedrock_iam_user_exempt_principal_arns` carve-out. Addresses
+  LLMjacking with leaked access keys
+  ([Datadog Security Labs, 2026-09-18](https://securitylabs.datadoghq.com/articles/attacker-infrastructure-but-vibe-coded/)).
+  Standalone JSON in `policies/ai-ml-guardrails/` and 3 new `terraform
+  test` runs (11 total).
+
 ## [0.1.0] - 2026-09-29
 
 First tagged release, after the repo was refocused on AI and ML guardrails.

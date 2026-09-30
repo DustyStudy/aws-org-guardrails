@@ -124,6 +124,61 @@ run "model_allow_list_keeps_inference_profiles" {
   }
 }
 
+run "bedrock_denied_to_iam_users_only" {
+  command = plan
+
+  variables {
+    enable_deny_bedrock_long_term_credentials = true
+  }
+
+  assert {
+    condition = jsondecode(aws_organizations_policy.this["deny-bedrock-long-term-credentials"].content).Statement[0].Condition == {
+      StringEquals = { "aws:PrincipalType" = "User" }
+    }
+    error_message = "With no exemptions, the deny must key only on aws:PrincipalType = User, so roles and federated sessions are untouched."
+  }
+
+  assert {
+    condition = alltrue([
+      for a in ["bedrock:InvokeModel*", "bedrock:CallWithBearerToken", "bedrock:ListFoundationModel*", "bedrock:PutFoundationModelEntitlement"] :
+      contains(jsondecode(aws_organizations_policy.this["deny-bedrock-long-term-credentials"].content).Statement[0].Action, a)
+    ])
+    error_message = "Invocation, Bedrock API keys, model discovery and model enablement must all be denied to IAM users."
+  }
+
+  assert {
+    condition     = length(aws_organizations_policy_attachment.this) == 8
+    error_message = "4 enabled policies x 2 targets must give 8 attachments."
+  }
+}
+
+run "bedrock_iam_user_exemptions_render" {
+  command = plan
+
+  variables {
+    enable_deny_bedrock_long_term_credentials = true
+    bedrock_iam_user_exempt_principal_arns    = ["arn:aws:iam::*:user/legacy-bedrock-*"]
+  }
+
+  assert {
+    condition = jsondecode(aws_organizations_policy.this["deny-bedrock-long-term-credentials"].content).Statement[0].Condition.ArnNotLike == {
+      "aws:PrincipalArn" = ["arn:aws:iam::*:user/legacy-bedrock-*"]
+    }
+    error_message = "Exempt IAM users must be carved out with ArnNotLike on aws:PrincipalArn."
+  }
+}
+
+run "bedrock_exemption_must_be_an_iam_user" {
+  command = plan
+
+  variables {
+    enable_deny_bedrock_long_term_credentials = true
+    bedrock_iam_user_exempt_principal_arns    = ["arn:aws:iam::*:role/anything"]
+  }
+
+  expect_failures = [var.bedrock_iam_user_exempt_principal_arns]
+}
+
 run "disabled_policies_are_not_created" {
   command = plan
 
@@ -146,6 +201,7 @@ run "standalone_json_matches_module" {
 
   variables {
     enable_restrict_bedrock_foundation_models = true
+    enable_deny_bedrock_long_term_credentials = true
     allowed_bedrock_model_patterns = [
       "REPLACE_WITH_ALLOWED_MODEL_PATTERN_1",
       "REPLACE_WITH_ALLOWED_MODEL_PATTERN_2",

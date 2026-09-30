@@ -32,6 +32,29 @@ variable "allowed_bedrock_model_patterns" {
   default     = ["anthropic.claude*", "amazon.titan*"]
 }
 
+variable "enable_deny_bedrock_long_term_credentials" {
+  type        = bool
+  description = <<-EOT
+    Deny Bedrock model discovery, model access and invocation to IAM users,
+    so a leaked access key or Bedrock API key can't be used for LLMjacking.
+    Off by default - first confirm in CloudTrail that no workload calls
+    Bedrock as an IAM user (userIdentity.type = "IAMUser"), or list the
+    ones that must keep working in bedrock_iam_user_exempt_principal_arns.
+  EOT
+  default     = false
+}
+
+variable "bedrock_iam_user_exempt_principal_arns" {
+  type        = list(string)
+  description = "IAM user ARN patterns still allowed to call Bedrock when enable_deny_bedrock_long_term_credentials is true (e.g. a legacy integration being migrated to a role). Wildcards allowed; keep it short and dated."
+  default     = []
+
+  validation {
+    condition     = alltrue([for arn in var.bedrock_iam_user_exempt_principal_arns : can(regex("^arn:[^:]+:iam::[^:]+:user/", arn))])
+    error_message = "Each exemption must be an IAM user ARN pattern (arn:<partition>:iam::<account>:user/<name>)."
+  }
+}
+
 variable "enable_lockdown_sagemaker_notebooks" {
   type        = bool
   description = "Deny SageMaker notebook instances with direct internet access, root access, or no VPC."

@@ -12,6 +12,7 @@ instances. Use the standalone JSON, or deploy and attach it via
 |---|---|
 | `deny-disable-bedrock-logging-and-guardrails.json` | Disabling Bedrock model invocation logging, or deleting a Bedrock Guardrail |
 | `restrict-bedrock-foundation-models.json` | Invoking any Bedrock foundation model not on your allow-list |
+| `deny-bedrock-long-term-credentials.json` | Bedrock model discovery, model access and invocation by IAM users (access keys, console passwords, Bedrock API keys) |
 | `lockdown-sagemaker-notebooks.json` | SageMaker notebooks with direct internet access, root access enabled, or no VPC |
 | `require-sagemaker-encryption.json` | SageMaker notebooks and training jobs that don't specify a KMS key |
 
@@ -37,6 +38,23 @@ instances. Use the standalone JSON, or deploy and attach it via
   turn it on only after populating `AllowedBedrockModelPatterns`/
   `allowed_bedrock_model_patterns` with the models you've actually
   approved, or you'll block all Bedrock usage in the account.
+- **No Bedrock for IAM users** blocks LLMjacking with leaked long-term
+  keys. Credential marketplaces validate stolen AWS keys with
+  `GetCallerIdentity`, then `ListFoundationModels` and bursts of
+  `InvokeModel` across Regions in under a minute
+  ([Datadog Security Labs, 2026-09-18](https://securitylabs.datadoghq.com/articles/attacker-infrastructure-but-vibe-coded/)).
+  In the case [FortiGuard Labs analysed](https://www.fortinet.com/blog/threat-research/someone-else-is-using-your-ai),
+  a long-lived admin key created a new IAM user, subscribed to models and
+  ran up inference cost. This week's AI coding-agent bugs (Kiro
+  [CVE-2026-95985](https://aws.amazon.com/security/security-bulletins/2026-117-aws/),
+  OpenCode [GHSA-632h-h47v-g4x4](https://securitylabs.datadoghq.com/articles/opencode-upgrade-remote-code-execution/))
+  are one more way those keys leave a laptop. The deny keys on
+  `aws:PrincipalType = User`, which only IAM users carry: roles, Identity
+  Center sessions and federated users are untouched. **Off by default**:
+  check CloudTrail for Bedrock events with `userIdentity.type = IAMUser`
+  first, and carve out any legacy integration with
+  `bedrock_iam_user_exempt_principal_arns` while it moves to a role.
+  NIST 800-53 Rev5: AC-2, AC-6, IA-2, IA-5.
 - **SageMaker notebook lockdown** closes the single most common SageMaker
   misconfiguration: a notebook instance with `DirectInternetAccess`
   enabled sitting outside a VPC, reachable from the internet, often with
@@ -84,5 +102,10 @@ module "ai_ml_guardrails" {
   valid credentials and a broad IAM role — see
   [`ai-agent-iam-auditor`](../ai-agent-iam-auditor/) for detecting
   over-permissioned agent roles, which is the complementary risk.
+- `deny-bedrock-long-term-credentials` does not cover the management
+  account (SCPs never do) or `aws-marketplace:Subscribe`, which is used for
+  more than Bedrock. Pair it with the `DenyIamUserCredentials` statement in
+  [aws-org-guardrails](https://github.com/DustyStudy/aws-org-guardrails) so
+  new IAM users and keys can't be created in the first place.
 - As with all SCPs, test in a non-production OU first — especially the
   model allow-list, which is an all-or-nothing gate once enabled.
