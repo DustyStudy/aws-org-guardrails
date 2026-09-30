@@ -60,6 +60,7 @@ the guardrail protects.
 | | Deny changing the account-level S3 Block Public Access | Yes |
 | | Deny launching instances without IMDSv2 | No |
 | | Deny changing instance metadata options on running instances | Yes |
+| | Deny RAM resource shares that allow principals outside the organization, and adding to existing ones | Yes |
 | `region-restriction` | Deny regional services outside `allowed_regions` (global services carved out; optional) | Yes |
 
 The **permissions boundary** caps what delegated principals (roles created by
