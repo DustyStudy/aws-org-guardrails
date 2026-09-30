@@ -16,6 +16,80 @@ This repo covers the AWS infrastructure layer. For the application layer
 LLM agents), see
 [`ai-agent-security-toolkit`](https://github.com/DustyStudy/ai-agent-security-toolkit).
 
+## How it fits together
+
+```mermaid
+flowchart TB
+  subgraph prevent["Prevent: management account"]
+    SCP["ai-ml-guardrails<br/>SCPs on OUs or accounts"]
+  end
+  subgraph detect["Detect: workload account"]
+    AUD["ai-agent-iam-auditor<br/>over-permissioned agent roles"]
+    COST["bedrock-cost-guardrails<br/>budget and anomaly alerts"]
+  end
+  subgraph fix["Remediate: workload account"]
+    LOG["bedrock-logging-enforcement<br/>restores invocation logging"]
+    NB["sagemaker-notebook-exposure<br/>locks down exposed notebooks"]
+  end
+  AI["Bedrock, Bedrock Agents, SageMaker"]
+  SNS["SNS alerts"]
+  prevent -- "deny risky changes" --> AI
+  detect -- "scan" --> AI
+  fix -- "put settings back" --> AI
+  detect --> SNS
+  fix --> SNS
+```
+
+The SCPs stop the risky change before it happens: turning off invocation
+logging, deleting a Guardrail, calling an unapproved model, or opening a
+notebook to the internet. The workload-account modules catch what an SCP
+can't express and report it, or put it back. `claude-apps-gateway` is a
+separate reference deployment and is not shown.
+
+## Quickstart
+
+Start with the preventive SCPs, attached to a sandbox OU first. Run this
+from the Organizations management account (or a delegated policy admin):
+
+```hcl
+module "ai_ml_guardrails" {
+  source = "github.com/DustyStudy/aws-ai-guardrails//terraform/ai-ml-guardrails?ref=v0.1.0"
+
+  target_ids = ["ou-abcd-11111111"] # a sandbox OU, not the root
+}
+```
+
+The defaults protect Bedrock logging and Guardrails and lock down SageMaker
+notebooks. The model allow-list stays off until you turn it on with
+`enable_restrict_bedrock_foundation_models` and your own
+`allowed_bedrock_model_patterns`.
+
+Then, in a workload account, add the read-only auditor and the cost alerts:
+
+```hcl
+module "ai_agent_iam_auditor" {
+  source             = "github.com/DustyStudy/aws-ai-guardrails//terraform/ai-agent-iam-auditor?ref=v0.1.0"
+  notification_email = "security@example.com"
+}
+
+module "bedrock_cost_guardrails" {
+  source                   = "github.com/DustyStudy/aws-ai-guardrails//terraform/bedrock-cost-guardrails?ref=v0.1.0"
+  notification_email       = "security@example.com"
+  monthly_budget_limit_usd = 500
+  anomaly_threshold_usd    = 50
+}
+```
+
+The auditor runs daily. To run it now, after confirming the SNS email:
+
+```bash
+aws lambda invoke --function-name ai-agent-iam-auditor-audit-ai-agent-iam out.json
+```
+
+Findings arrive as one SNS summary. The auditor never changes a role.
+`bedrock-logging-enforcement` and `sagemaker-notebook-exposure` do change
+resources, so read their READMEs before you add them.
+
 ## Where the general AWS modules went
 
 This repo used to be `aws-cloud-security-toolbox`, a mix of general AWS
