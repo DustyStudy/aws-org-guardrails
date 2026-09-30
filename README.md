@@ -149,8 +149,8 @@ walkthrough.
 ## CI
 
 GitHub Actions on every push/PR:
-- **Terraform**: `terraform fmt -check`, `terraform validate`, `tflint`,
-  Checkov
+- **Terraform**: `terraform fmt -check`, `terraform validate`,
+  `terraform test`, `tflint`, Checkov
 - **Python and policies**: Lambda sources compile, `policies/**/*.json`
   parses, and the unit tests in `tests/` pass
 - **Security scan**: Gitleaks over the full history, and Trivy for
@@ -158,6 +158,11 @@ GitHub Actions on every push/PR:
   tab); also runs weekly
 
 ## Tests
+
+`terraform/ai-ml-guardrails/tests/` holds a plan-time `terraform test`
+suite with a mocked AWS provider. It decodes the rendered SCP JSON and
+checks the statements, and it fails if a file in
+`policies/ai-ml-guardrails/` drifts from what the module renders.
 
 `tests/` holds pytest suites for the three Lambdas:
 `bedrock-logging-enforcement`, `ai-agent-iam-auditor` and
@@ -170,8 +175,13 @@ pending-remediation tag.
 
 None of these modules has been deployed against a real account yet;
 treat the tests as the evidence, not a live run.
+[docs/PROOF.md](docs/PROOF.md) lists what each check covers, the numbers
+from the last run (including IAM Access Analyzer validation of the SCPs),
+and the gaps.
 
 ```sh
+terraform -chdir=terraform/ai-ml-guardrails init -backend=false
+terraform -chdir=terraform/ai-ml-guardrails test
 pip install pytest boto3
 python -m pytest tests
 ```

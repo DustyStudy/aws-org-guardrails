@@ -71,6 +71,15 @@ jobs:
             (cd "$dir" && terraform init -backend=false -input=false && terraform validate)
           done
 
+      # Plan-only tests with a mocked AWS provider, so no cloud access is
+      # needed. Runs after validate, which has already run init.
+      - name: Terraform test
+        run: |
+          find terraform -path '*/tests/*.tftest.hcl' -printf '%h\n' | xargs -n1 dirname | sort -u | while read -r dir; do
+            echo "Testing $dir"
+            (cd "$dir" && terraform test)
+          done
+
       - name: Set up TFLint
         uses: terraform-linters/setup-tflint@1cf010d3c7aef302051ccdb68c14c5dc2efa34ef # v6.3.1
 
