@@ -31,6 +31,33 @@ modules deploy to commercial regions and GovCloud.
   unscoped IMDSv2 rule and a missing global-service carve-out
   ([details](docs/DESIGN.md#how-the-tests-were-checked)).
 
+## How it fits together
+
+```mermaid
+flowchart TB
+  subgraph render["modules/policies: renders JSON offline, no AWS provider"]
+    SCP["4 SCP bundles<br/>core, security-services,<br/>data-and-compute, region-restriction"]
+    PB["Permissions boundary"]
+  end
+  TESTS["Tests on the rendered JSON<br/>pytest behavior tests (iam_eval.py)<br/>IAM Access Analyzer"]
+  SCP --> TESTS
+  PB --> TESTS
+  SCP --> SB["modules/scp-baseline<br/>attaches bundles, max 5 SCPs per target"]
+  PB --> PBM["modules/permission-boundary<br/>creates the policy in a member account"]
+  PB --> IC["modules/identity-center<br/>permission sets must carry the boundary"]
+  subgraph org["AWS Organization"]
+    OU["Root, OUs, member accounts"]
+    WR["Roles created by app teams<br/>under /workload/"]
+  end
+  SB -- "Deny statements,<br/>listed exempt roles skip most" --> OU
+  PBM --> WR
+  IC -- "bounded access for people" --> OU
+```
+
+The tests run against the exact JSON Terraform will deploy, so a broken
+condition key or a hard-coded partition fails CI before anything is
+attached.
+
 ## Modules
 
 | Module | What it does |
