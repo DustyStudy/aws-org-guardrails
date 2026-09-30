@@ -8,6 +8,11 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `data-and-compute` bundle: `DenyExternalResourceShares` blocks creating
+  or updating a RAM resource share that allows principals outside the
+  organization, and `DenyAssociateToExternalShares` blocks adding
+  resources or principals to a share that already allows them. Exempt
+  roles can still share externally.
 - Live proof: `proof/main.tf` deploys the guardrails to a sandbox OU and
   `proof/probe.py` checks them with real API calls, recording which policy
   type denied each one. First run: 31 of 31 probes matched

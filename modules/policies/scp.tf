@@ -166,6 +166,24 @@ locals {
       Resource  = "*"
       Condition = local.exempt
     },
+    {
+      # RAM shares stay inside the organization. Sharing with the
+      # organization or its OUs sets allowExternalPrincipals to false.
+      Sid       = "DenyExternalResourceShares"
+      Effect    = "Deny"
+      Action    = ["ram:CreateResourceShare", "ram:UpdateResourceShare"]
+      Resource  = "*"
+      Condition = merge(local.exempt, { Bool = { "ram:RequestedAllowsExternalPrincipals" = "true" } })
+    },
+    {
+      # Covers shares that already allowed external principals before this
+      # guardrail was attached: nothing new can be added to them.
+      Sid       = "DenyAssociateToExternalShares"
+      Effect    = "Deny"
+      Action    = ["ram:AssociateResourceShare"]
+      Resource  = "*"
+      Condition = merge(local.exempt, { Bool = { "ram:AllowsExternalPrincipals" = "true" } })
+    },
   ]
 
   # Global services and the handful of regional actions they depend on. They

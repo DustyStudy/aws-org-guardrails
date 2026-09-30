@@ -183,6 +183,33 @@ def test_account_level_data_protections_are_locked(commercial, action):
     assert decide(commercial, req(action, BREAKGLASS)) is Decision.ALLOW
 
 
+# --- resource sharing ------------------------------------------------------
+
+
+@pytest.mark.parametrize("action", ["ram:CreateResourceShare", "ram:UpdateResourceShare"])
+def test_resource_shares_cannot_allow_external_principals(commercial, action):
+    external = req(action, **{"ram:RequestedAllowsExternalPrincipals": "true"})
+    assert decide(commercial, external) is Decision.EXPLICIT_DENY
+
+
+@pytest.mark.parametrize("action", ["ram:CreateResourceShare", "ram:UpdateResourceShare"])
+def test_resource_shares_inside_the_organization_are_allowed(commercial, action):
+    internal = req(action, **{"ram:RequestedAllowsExternalPrincipals": "false"})
+    assert decide(commercial, internal) is Decision.ALLOW
+
+
+def test_nothing_new_can_join_an_existing_external_share(commercial):
+    external = req("ram:AssociateResourceShare", **{"ram:AllowsExternalPrincipals": "true"})
+    internal = req("ram:AssociateResourceShare", **{"ram:AllowsExternalPrincipals": "false"})
+    assert decide(commercial, external) is Decision.EXPLICIT_DENY
+    assert decide(commercial, internal) is Decision.ALLOW
+
+
+def test_break_glass_can_still_share_externally(commercial):
+    external = req("ram:CreateResourceShare", BREAKGLASS, **{"ram:RequestedAllowsExternalPrincipals": "true"})
+    assert decide(commercial, external) is Decision.ALLOW
+
+
 # --- regions ----------------------------------------------------------------
 
 
