@@ -464,6 +464,7 @@ resource "aws_ecr_repository" "gateway" {
 # ---------------------------------------------------------------------
 # S3 bucket for ALB access logs
 # ---------------------------------------------------------------------
+#trivy:ignore:AWS-0089 This is the access-log destination; logging it would be recursive.
 resource "aws_s3_bucket" "alb_logs" {
   # checkov:skip=CKV_AWS_18: This IS an access-log destination bucket -
   # giving it its own access logs would be recursive.
