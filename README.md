@@ -173,7 +173,7 @@ Trivy and Gitleaks.
 
 Preventive SCPs, detective audits, auto-remediation and cost controls for
 Amazon Bedrock, Bedrock Agents and SageMaker. These came from the
-now-archived `aws-ai-guardrails` repo, history included.
+former `aws-ai-guardrails` repo, history included.
 
 ```mermaid
 flowchart TB
