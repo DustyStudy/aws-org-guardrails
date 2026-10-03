@@ -15,7 +15,8 @@ uses [Semantic Versioning](https://semver.org/).
   `policies/ai-ml-guardrails/`, Lambda tests under `tests/lambdas/`, and
   `docs/PROOF-AI-ML.md`. Module sources change from
   `aws-ai-guardrails//terraform/<name>` to `aws-org-guardrails//modules/<name>`.
-  The `aws-ai-guardrails` changelog stays in that archived repo.
+  That repo's own changelog is in this repo's history at
+  `_ai/CHANGELOG.md` in commit `4367e71`.
 
 ### Changed
 
