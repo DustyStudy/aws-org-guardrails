@@ -37,8 +37,7 @@ jobs:
 
       - name: terraform validate (modules and examples)
         run: |
-          for dir in $(find modules examples tests/fixtures/render -name '*.tf' -printf '%h
-' | sort -u); do
+          for dir in $(find modules examples tests/fixtures/render -name '*.tf' -printf '%h\n' | sort -u); do
             echo "::group::$dir"
             terraform -chdir="$dir" init -backend=false -input=false >/dev/null
             terraform -chdir="$dir" validate
@@ -85,8 +84,7 @@ jobs:
       - name: terraform test
         run: |
           status=0
-          for dir in $(find modules -path '*/tests/*.tftest.hcl' -printf '%h
-' | xargs -n1 dirname | sort -u); do
+          for dir in $(find modules -path '*/tests/*.tftest.hcl' -printf '%h\n' | xargs -n1 dirname | sort -u); do
             echo "::group::$dir"
             terraform -chdir="$dir" init -backend=false -input=false >/dev/null
             terraform -chdir="$dir" test || status=1
