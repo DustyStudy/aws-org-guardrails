@@ -6,7 +6,8 @@
 
 Terraform modules for AWS Organizations guardrails: service control policies,
 a permissions boundary for delegated IAM, and IAM Identity Center permission
-sets that carry that boundary. Every policy is partition-aware, so the same
+sets that carry that boundary, plus [AI and ML guardrails](#ai-and-ml-guardrails)
+for Bedrock and SageMaker. Every policy is partition-aware, so the same
 modules deploy to commercial regions and GovCloud.
 
 **At a glance**
@@ -131,7 +132,8 @@ the management account, so keep workloads out of it.
 ## Testing
 
 ```sh
-# Policy behavior tests (needs terraform on PATH; no AWS credentials)
+# Policy behavior tests and AI/ML Lambda tests (needs terraform on PATH;
+# no AWS credentials, boto3 clients are mocked)
 pip install -r requirements-dev.txt
 pytest
 
@@ -166,6 +168,53 @@ Trivy and Gitleaks.
   yet. See [docs/DESIGN.md](docs/DESIGN.md) for the roadmap and the reasoning
   behind each design choice, and [docs/CONTROLS.md](docs/CONTROLS.md) for the
   NIST SP 800-53 Rev5 mapping.
+
+## AI and ML guardrails
+
+Preventive SCPs, detective audits, auto-remediation and cost controls for
+Amazon Bedrock, Bedrock Agents and SageMaker. These came from the
+now-archived `aws-ai-guardrails` repo, history included.
+
+```mermaid
+flowchart TB
+  subgraph prevent["Prevent: management account"]
+    SCP["ai-ml-guardrails<br/>SCPs on OUs or accounts"]
+  end
+  subgraph detect["Detect: workload account"]
+    AUD["ai-agent-iam-auditor<br/>over-permissioned agent roles"]
+    COST["bedrock-cost-guardrails<br/>budget and anomaly alerts"]
+  end
+  subgraph fix["Remediate: workload account"]
+    LOG["bedrock-logging-enforcement<br/>restores invocation logging"]
+    NB["sagemaker-notebook-exposure<br/>locks down exposed notebooks"]
+  end
+  AI["Bedrock, Bedrock Agents, SageMaker"]
+  SNS["SNS alerts"]
+  prevent -- "deny risky changes" --> AI
+  detect -- "scan" --> AI
+  fix -- "put settings back" --> AI
+  detect --> SNS
+  fix --> SNS
+```
+
+The SCPs stop the risky change before it happens: turning off invocation
+logging, deleting a Guardrail, calling an unapproved model, or opening a
+notebook to the internet. The workload-account modules catch what an SCP
+can't express and report it, or put it back. `claude-apps-gateway` is a
+separate reference deployment and is not shown.
+
+| Module | Type | What it does |
+|---|---|---|
+| [`ai-ml-guardrails`](modules/ai-ml-guardrails) | Preventive | SCPs protecting Bedrock logging and Guardrails, an optional model allow-list, an optional deny of Bedrock to IAM users (LLMjacking), and SageMaker notebook lockdown |
+| [`bedrock-logging-enforcement`](modules/bedrock-logging-enforcement) | Auto-remediation | Re-enables Bedrock invocation logging if it's disabled |
+| [`ai-agent-iam-auditor`](modules/ai-agent-iam-auditor) | Detective | Flags over-permissioned IAM roles trusted by AI services or behind Bedrock Agent action groups |
+| [`bedrock-cost-guardrails`](modules/bedrock-cost-guardrails) | Detective | Budget ceiling and anomaly detection on Bedrock spend |
+| [`sagemaker-notebook-exposure`](modules/sagemaker-notebook-exposure) | Auto-remediation | Locks down SageMaker notebooks with internet or root access enabled |
+| [`claude-apps-gateway`](modules/claude-apps-gateway) | Reference | Deployment reference for the Claude apps gateway on AWS |
+
+Each module's README covers its inputs and deployment. The standalone SCP
+JSON in [`policies/ai-ml-guardrails/`](policies/ai-ml-guardrails) works
+without Terraform. What is and isn't verified: [docs/PROOF-AI-ML.md](docs/PROOF-AI-ML.md).
 
 ## License
 

@@ -12,3 +12,7 @@ __pycache__/
 .venv/
 trivy-results.sarif
 *.tfvars
+
+# Packaged Lambda artifacts from the AI/ML modules
+build/
+*.zip

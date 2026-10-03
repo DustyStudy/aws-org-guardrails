@@ -8,6 +8,15 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- AI and ML guardrails from `aws-ai-guardrails` (v0.2.1), with git history:
+  `ai-ml-guardrails`, `ai-agent-iam-auditor`, `bedrock-cost-guardrails`,
+  `bedrock-logging-enforcement`, `sagemaker-notebook-exposure` and
+  `claude-apps-gateway` under `modules/`, standalone SCP JSON under
+  `policies/ai-ml-guardrails/`, Lambda tests under `tests/lambdas/`, and
+  `docs/PROOF-AI-ML.md`. Module sources change from
+  `aws-ai-guardrails//terraform/<name>` to `aws-org-guardrails//modules/<name>`.
+  The `aws-ai-guardrails` changelog stays in that archived repo.
+
 - `data-and-compute` bundle: `DenyExternalResourceShares` blocks creating
   or updating a RAM resource share that allows principals outside the
   organization, and `DenyAssociateToExternalShares` blocks adding
