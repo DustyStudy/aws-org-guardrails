@@ -52,8 +52,11 @@ GovCloud region first.
 
 ## Notes
 
-- The S3 destination bucket uses SSE-S3, not SSE-KMS — a documented AWS
-  limitation of Bedrock's S3 log-delivery mechanism.
+- The S3 destination bucket uses SSE-KMS with the module's rotating CMK.
+  Its key policy lets `bedrock.amazonaws.com` call `kms:GenerateDataKey`
+  for this account's Bedrock resources only, as the
+  [Bedrock docs](https://docs.aws.amazon.com/bedrock/latest/userguide/model-invocation-logging.html#setup-s3-destination)
+  describe.
 - Only account-level logging is covered — extend the Lambda if you use
   application inference profiles with their own logging needs.
 - Pair this with [`ai-ml-guardrails`](../ai-ml-guardrails/)'s

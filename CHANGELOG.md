@@ -17,6 +17,21 @@ uses [Semantic Versioning](https://semver.org/).
   `aws-ai-guardrails//terraform/<name>` to `aws-org-guardrails//modules/<name>`.
   The `aws-ai-guardrails` changelog stays in that archived repo.
 
+### Changed
+
+- AI/ML modules: the SNS topics in `ai-agent-iam-auditor`,
+  `bedrock-logging-enforcement` and both `sagemaker-notebook-exposure`
+  variants are encrypted with each module's existing rotating CMK instead
+  of the AWS-managed `alias/aws/sns` key.
+- `bedrock-logging-enforcement`: the invocation-log bucket uses SSE-KMS
+  with the module's CMK. The old comment said Bedrock couldn't deliver to
+  SSE-KMS buckets; AWS documents that it can, given a `kms:GenerateDataKey`
+  grant to `bedrock.amazonaws.com`, which the key policy now has. Redeploying
+  changes the default encryption for new objects only.
+- `claude-apps-gateway`: inline Trivy ignores, with reasons, for the
+  port-443 egress rule and the SSE-S3 ALB log bucket (ALB access logs
+  support only SSE-S3).
+
 - `data-and-compute` bundle: `DenyExternalResourceShares` blocks creating
   or updating a RAM resource share that allows principals outside the
   organization, and `DenyAssociateToExternalShares` blocks adding

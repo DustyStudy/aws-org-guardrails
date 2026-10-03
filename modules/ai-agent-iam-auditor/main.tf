@@ -10,7 +10,7 @@ data "archive_file" "lambda_zip" {
 
 resource "aws_sns_topic" "audit" {
   name              = "${var.name_prefix}-ai-agent-iam-audit"
-  kms_master_key_id = "alias/aws/sns"
+  kms_master_key_id = aws_kms_key.log_encryption.arn
 }
 
 resource "aws_sns_topic_subscription" "email" {
@@ -21,7 +21,7 @@ resource "aws_sns_topic_subscription" "email" {
 }
 
 resource "aws_kms_key" "log_encryption" {
-  description         = "Encrypts the ${var.name_prefix} AI agent IAM auditor Lambda's log group, DLQ, and environment variables."
+  description         = "Encrypts the ${var.name_prefix} AI agent IAM auditor Lambda's log group, DLQ, environment variables and SNS topic."
   enable_key_rotation = true
 
   policy = jsonencode({

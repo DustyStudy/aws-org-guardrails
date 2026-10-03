@@ -116,6 +116,7 @@ resource "aws_security_group_rule" "gateway_from_alb" {
   source_security_group_id = aws_security_group.alb.id
 }
 
+#trivy:ignore:AWS-0104 HTTPS to the IdP and AWS APIs, whose addresses aren't fixed; port-scoped.
 resource "aws_security_group_rule" "gateway_egress_https" {
   # Bedrock (if not using the VPC endpoint), the IdP, ECR, Secrets
   # Manager, and CloudWatch Logs are all reached over HTTPS to
@@ -501,6 +502,7 @@ resource "aws_s3_bucket_versioning" "alb_logs" {
   }
 }
 
+#trivy:ignore:AWS-0132 ALB access logs support only SSE-S3 (AWS docs: enable-access-logging).
 resource "aws_s3_bucket_server_side_encryption_configuration" "alb_logs" {
   bucket = aws_s3_bucket.alb_logs.id
   rule {

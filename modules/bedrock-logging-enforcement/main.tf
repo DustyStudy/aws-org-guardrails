@@ -10,7 +10,7 @@ data "archive_file" "lambda_zip" {
 
 resource "aws_sns_topic" "enforcement" {
   name              = "${var.name_prefix}-bedrock-logging-drift"
-  kms_master_key_id = "alias/aws/sns"
+  kms_master_key_id = aws_kms_key.log_encryption.arn
 }
 
 resource "aws_sns_topic_subscription" "email" {
@@ -21,7 +21,7 @@ resource "aws_sns_topic_subscription" "email" {
 }
 
 resource "aws_kms_key" "log_encryption" {
-  description         = "Encrypts the ${var.name_prefix} Bedrock logging enforcement Lambda's log group, DLQ, Bedrock CloudWatch destination, and environment variables."
+  description         = "Encrypts the ${var.name_prefix} Bedrock logging enforcement Lambda's log group, DLQ, SNS topic, environment variables, and both Bedrock log destinations."
   enable_key_rotation = true
 
   policy = jsonencode({
@@ -56,6 +56,19 @@ resource "aws_kms_key" "log_encryption" {
         }
       },
       {
+        # Bedrock writes invocation logs to the SSE-KMS bucket below.
+        # https://docs.aws.amazon.com/bedrock/latest/userguide/model-invocation-logging.html
+        Sid       = "AllowBedrockLogDeliveryToS3"
+        Effect    = "Allow"
+        Principal = { Service = "bedrock.amazonaws.com" }
+        Action    = "kms:GenerateDataKey"
+        Resource  = "*"
+        Condition = {
+          StringEquals = { "aws:SourceAccount" = data.aws_caller_identity.current.account_id }
+          ArnLike      = { "aws:SourceArn" = "arn:${data.aws_partition.current.partition}:bedrock:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:*" }
+        }
+      },
+      {
         Sid       = "AllowSQSUseOfKey"
         Effect    = "Allow"
         Principal = { Service = "sqs.amazonaws.com" }
@@ -82,9 +95,6 @@ resource "aws_s3_bucket" "bedrock_logs" {
   # checkov:skip=CKV_AWS_144: Cross-region replication omitted for this
   # starter template - add if your compliance regime requires geographic
   # redundancy.
-  # checkov:skip=CKV_AWS_145: Bedrock's S3 log-delivery mechanism does not
-  # support SSE-KMS destination buckets - SSE-S3 is required here. This is
-  # a documented AWS limitation, not an oversight.
   # checkov:skip=CKV_AWS_19: Encryption IS configured, via the separate
   # aws_s3_bucket_server_side_encryption_configuration resource below (the
   # syntax the AWS provider v4+ requires). This is a known, long-standing
@@ -118,13 +128,13 @@ resource "aws_s3_bucket_versioning" "bedrock_logs" {
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "bedrock_logs" {
-  # Bedrock's S3 log-delivery mechanism does not support SSE-KMS
-  # destination buckets - SSE-S3 is required here.
   bucket = aws_s3_bucket.bedrock_logs.id
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.log_encryption.arn
     }
+    bucket_key_enabled = true
   }
 }
 
