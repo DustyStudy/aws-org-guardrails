@@ -24,7 +24,7 @@ updates:
 
       default-days: 7
     directories:
-      - "/modules/*"
+      - "/modules/**"
       - "/examples/*"
     schedule:
       interval: "weekly"

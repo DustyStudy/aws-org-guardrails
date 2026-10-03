@@ -1,0 +1,79 @@
+# Claude apps gateway configuration - ECS Fargate / Amazon Bedrock upstream.
+#
+# Every REPLACE_ME below is a literal value known before you build the
+# image (a hostname, your IdP's issuer/client ID, your allowed email
+# domains). Nothing here is a secret - the three real secrets
+# (session.jwt_secret, oidc.client_secret, store.postgres_url) resolve at
+# container boot from environment variables that this stack's ECS task
+# definition injects from Secrets Manager, so this file is safe to commit
+# to version control.
+#
+# Copy this file to gateway.yaml, fill in the REPLACE_ME values, then
+# follow this directory's README to build it into the container image.
+
+listen:
+  host: 0.0.0.0
+  port: 8080
+  # The internal hostname developers will reach the gateway at - must
+  # match the ACM certificate's name and your IdP app's redirect URI.
+  public_url: https://REPLACE_ME_claude-gateway.internal.example.com
+  # The ALB's subnet CIDRs (the PrivateSubnetIds you pass to the
+  # template). The gateway only honors X-Forwarded-For from these
+  # ranges, so per-IP sign-in rate limits and audit events record
+  # developer IPs instead of the load balancer's.
+  trusted_proxies: [REPLACE_ME_your-alb-subnet-cidrs]
+
+oidc:
+  # Your IdP's OIDC issuer - must serve /.well-known/openid-configuration.
+  # Okta example: https://example.okta.com
+  # Entra ID example: https://login.microsoftonline.com/<tenant-id>/v2.0
+  issuer: https://REPLACE_ME.example.com
+  client_id: REPLACE_ME_client_id
+  client_secret: ${OIDC_CLIENT_SECRET}
+  allowed_email_domains: [REPLACE_ME_example.com]
+  # For IdPs whose id_token omits email/groups (e.g. Okta's org
+  # authorization server) - harmless to leave true otherwise.
+  userinfo_fallback: true
+  # Okta emits groups only when the `groups` scope is requested and the
+  # app's groups claim filter allows them. Drop `groups` for Entra ID,
+  # which emits group Object IDs via a different mechanism - see
+  # https://code.claude.com/docs/en/claude-apps-gateway-deploy#identity-provider-setup
+  scopes: [openid, profile, email, offline_access, groups]
+
+session:
+  jwt_secret: ${GATEWAY_JWT_SECRET}
+  # Bounds deprovision latency - a developer removed from the IdP loses
+  # gateway access within this many hours at the next session refresh.
+  # Lower toward 1 for tighter revocation.
+  ttl_hours: 8
+
+store:
+  postgres_url: ${GATEWAY_POSTGRES_URL}
+
+upstreams:
+  - provider: bedrock
+    # Must match the region you deployed the Terraform
+    # module in, so the task role's IAM policy ARNs cover it.
+    region: REPLACE_ME_us-east-1
+    auth: {} # AWS default credential chain: the ECS task role
+
+# The built-in model catalog resolves every Claude model to its
+# us.anthropic.* cross-region inference profile automatically. Set to
+# false and add a `models:` block if you want to expose only specific
+# models, or need non-US inference-profile IDs - see
+# https://code.claude.com/docs/en/claude-apps-gateway-config#models
+auto_include_builtin_models: true
+
+# Uncomment and adapt once you're past the minimal working config:
+#
+# managed:
+#   policies:
+#     - match: { groups: ["REPLACE_ME_platform-team"] }
+#       cli:
+#         availableModels: ["claude-sonnet-5", "claude-opus-4-8"]
+#         enforceAvailableModels: true
+#
+# telemetry:
+#   forward_to:
+#     - url: https://REPLACE_ME_your-otel-collector.internal.example.com
+#       signals: [metrics]

@@ -1,0 +1,19 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyDisallowedFoundationModels",
+      "Effect": "Deny",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "NotResource": [
+        "arn:*:bedrock:*::foundation-model/REPLACE_WITH_ALLOWED_MODEL_PATTERN_1",
+        "arn:*:bedrock:*::foundation-model/REPLACE_WITH_ALLOWED_MODEL_PATTERN_2",
+        "arn:*:bedrock:*:*:inference-profile/*",
+        "arn:*:bedrock:*:*:application-inference-profile/*"
+      ]
+    }
+  ]
+}

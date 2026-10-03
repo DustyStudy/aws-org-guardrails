@@ -37,7 +37,7 @@ jobs:
 
       - name: terraform validate (modules and examples)
         run: |
-          for dir in modules/* examples/* tests/fixtures/render; do
+          for dir in $(find modules examples tests/fixtures/render -name '*.tf' -printf '%h\n' | sort -u); do
             echo "::group::$dir"
             terraform -chdir="$dir" init -backend=false -input=false >/dev/null
             terraform -chdir="$dir" validate
@@ -84,7 +84,7 @@ jobs:
       - name: terraform test
         run: |
           status=0
-          for dir in modules/*; do
+          for dir in $(find modules -path '*/tests/*.tftest.hcl' -printf '%h\n' | xargs -n1 dirname | sort -u); do
             echo "::group::$dir"
             terraform -chdir="$dir" init -backend=false -input=false >/dev/null
             terraform -chdir="$dir" test || status=1
@@ -93,7 +93,7 @@ jobs:
           exit $status
 
   policy-tests:
-    name: Policy behavior tests (pytest)
+    name: Policy behavior and Lambda tests (pytest)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -129,3 +129,9 @@ jobs:
 
       - name: pytest
         run: pytest -q
+
+      - name: Standalone policy JSON parses
+        run: |
+          for f in policies/*/*.json; do
+            python -m json.tool "$f" > /dev/null || { echo "::error file=$f::Invalid JSON"; exit 1; }
+          done
