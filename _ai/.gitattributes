@@ -1,0 +1,22 @@
+# Normalize line endings to LF for everything Git treats as text,
+# regardless of the platform/editor used to check it out or edit it.
+* text=auto eol=lf
+
+# Explicit text types (belt-and-suspenders for editors that guess by
+# extension rather than content sniffing)
+*.py    text eol=lf
+*.tf    text eol=lf
+*.tfvars text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.sh    text eol=lf
+.gitignore    text eol=lf
+.gitattributes text eol=lf
+
+# Binary/packaged artifacts - never touch these
+*.zip   binary
+*.pem   binary
+*.png   binary
+*.jpg   binary

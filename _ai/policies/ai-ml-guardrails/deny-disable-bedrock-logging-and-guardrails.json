@@ -1,0 +1,17 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyDisableBedrockInvocationLogging",
+      "Effect": "Deny",
+      "Action": "bedrock:DeleteModelInvocationLoggingConfiguration",
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyDeleteBedrockGuardrails",
+      "Effect": "Deny",
+      "Action": "bedrock:DeleteGuardrail",
+      "Resource": "*"
+    }
+  ]
+}

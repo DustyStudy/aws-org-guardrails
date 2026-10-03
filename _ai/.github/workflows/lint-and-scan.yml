@@ -1,0 +1,108 @@
+name: Lint and Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Least-privilege default for the whole workflow: every job below only
+# reads repository content (checkout, lint, scan) - none of them push
+# commits, open PRs, or write to any other GitHub API surface. Without
+# this, GITHUB_TOKEN falls back to whatever the repo/org default is,
+# which can be broader than this workflow actually needs.
+permissions:
+  contents: read
+
+jobs:
+  python-and-policies:
+    name: Python and policy JSON
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false # this job never pushes back to the repo
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Compile all Python sources
+        run: python -m compileall -q terraform
+
+      - name: Unit-test the Lambdas
+        # boto3 clients are replaced with mocks in tests/, so no AWS access
+        # is needed.
+        run: |
+          pip install "pytest==9.1.1" "boto3==1.43.104"
+          python -m pytest tests -q
+
+      - name: Validate policy JSON
+        run: |
+          for f in policies/*/*.json; do
+            python -m json.tool "$f" > /dev/null || { echo "Invalid JSON: $f"; exit 1; }
+          done
+
+  terraform:
+    name: Terraform (fmt, validate, tflint, Checkov)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false # this job never pushes back to the repo
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive terraform
+
+      - name: Terraform init and validate
+        run: |
+          find terraform -name '*.tf' -printf '%h\n' | sort -u | while read -r dir; do
+            echo "Validating $dir"
+            (cd "$dir" && terraform init -backend=false -input=false && terraform validate)
+          done
+
+      # Plan-only tests with a mocked AWS provider, so no cloud access is
+      # needed. Runs after validate, which has already run init.
+      - name: Terraform test
+        run: |
+          find terraform -path '*/tests/*.tftest.hcl' -printf '%h\n' | xargs -n1 dirname | sort -u | while read -r dir; do
+            echo "Testing $dir"
+            (cd "$dir" && terraform test)
+          done
+
+      - name: Set up TFLint
+        uses: terraform-linters/setup-tflint@1cf010d3c7aef302051ccdb68c14c5dc2efa34ef # v6.3.1
+
+      - name: Run TFLint
+        run: |
+          find terraform -name '*.tf' -printf '%h\n' | sort -u | while read -r dir; do
+            echo "Linting $dir"
+            (cd "$dir" && tflint --init && tflint)
+          done
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@444c9db6fa75e2d9c19ebf1fde7322089be9009e # v12.3125.0
+        with:
+          directory: terraform
+          framework: terraform
+          quiet: true

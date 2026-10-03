@@ -1,0 +1,31 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Packaged Lambda artifacts (build locally, don't commit)
+build/
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tfvars
+!*.tfvars.example
+.env
+.env.*
+*.pem
+*.key

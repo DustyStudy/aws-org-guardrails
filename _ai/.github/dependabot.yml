@@ -1,0 +1,18 @@
+# Keeps CI dependencies current so version/SHA pins don't quietly rot
+# into an unpatched, unreviewed baseline. Complements pinning
+# lint-and-scan.yml's actions to exact versions/SHAs rather than
+# replacing it - a pin without an update mechanism just freezes you on
+# whatever was current the day you wrote it, including any
+# vulnerabilities discovered afterward.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    cooldown:
+      default-days: 7
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "github-actions"

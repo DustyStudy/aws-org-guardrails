@@ -1,0 +1,44 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenySageMakerDirectInternetAccess",
+      "Effect": "Deny",
+      "Action": [
+        "sagemaker:CreateNotebookInstance",
+        "sagemaker:UpdateNotebookInstance"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "sagemaker:DirectInternetAccess": "Enabled"
+        }
+      }
+    },
+    {
+      "Sid": "DenySageMakerRootAccess",
+      "Effect": "Deny",
+      "Action": [
+        "sagemaker:CreateNotebookInstance",
+        "sagemaker:UpdateNotebookInstance"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "sagemaker:RootAccess": "Enabled"
+        }
+      }
+    },
+    {
+      "Sid": "DenySageMakerNotebookWithoutVPC",
+      "Effect": "Deny",
+      "Action": "sagemaker:CreateNotebookInstance",
+      "Resource": "*",
+      "Condition": {
+        "Null": {
+          "sagemaker:VpcSubnets": "true"
+        }
+      }
+    }
+  ]
+}
