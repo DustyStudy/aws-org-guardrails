@@ -124,7 +124,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Install dependencies
-        run: pip install -r requirements-dev.txt
+        run: pip install --require-hashes -r requirements-dev.txt
 
       - name: ruff
         run: |
