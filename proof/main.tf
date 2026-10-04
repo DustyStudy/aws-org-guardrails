@@ -46,20 +46,22 @@ provider "aws" {
   region  = "us-east-1"
 }
 
+data "aws_partition" "current" {}
+
 data "aws_caller_identity" "sandbox" {
   provider = aws.sandbox
 }
 
 locals {
-  account_root = "arn:aws:iam::${data.aws_caller_identity.sandbox.account_id}:root"
+  account_root = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.sandbox.account_id}:root"
 
   # Same settings as the organization-wide rollout, so the proof exercises
   # the configuration that goes live.
   exempt_principal_arns = [
-    "arn:aws:iam::*:role/security-breakglass",
-    "arn:aws:iam::*:role/security-pipeline",
-    "arn:aws:iam::*:role/ProwlerScan",
-    "arn:aws:iam::*:role/stacksets-exec-*",
+    "arn:${data.aws_partition.current.partition}:iam::*:role/security-breakglass",
+    "arn:${data.aws_partition.current.partition}:iam::*:role/security-pipeline",
+    "arn:${data.aws_partition.current.partition}:iam::*:role/ProwlerScan",
+    "arn:${data.aws_partition.current.partition}:iam::*:role/stacksets-exec-*",
   ]
   protected_role_name_prefixes = ["OrganizationAccountAccessRole", "security-", "ProwlerScan", "stacksets-exec-"]
   allowed_regions              = ["us-east-1", "us-east-2", "us-west-2"]
@@ -100,7 +102,7 @@ resource "aws_iam_role_policy_attachment" "breakglass_admin" {
   provider = aws.sandbox
 
   role       = aws_iam_role.breakglass.name
-  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+  policy_arn = "arn:${data.aws_partition.current.partition}:iam::aws:policy/AdministratorAccess"
 }
 
 # Delegated principal: full admin identity policy, capped by the boundary.
@@ -119,7 +121,7 @@ resource "aws_iam_role_policy_attachment" "app_deployer_admin" {
   provider = aws.sandbox
 
   role       = aws_iam_role.app_deployer.name
-  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+  policy_arn = "arn:${data.aws_partition.current.partition}:iam::aws:policy/AdministratorAccess"
 }
 
 # --- Management account: SCPs on the sandbox OU ----------------------------

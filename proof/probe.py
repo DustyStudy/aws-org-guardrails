@@ -100,7 +100,8 @@ def trust_policy(account_id: str) -> str:
         {
             "Version": "2012-10-17",
             "Statement": [
-                {"Effect": "Allow", "Principal": {"AWS": f"arn:aws:iam::{account_id}:root"}, "Action": "sts:AssumeRole"}
+                # A bare account ID is the account root in any partition.
+                {"Effect": "Allow", "Principal": {"AWS": account_id}, "Action": "sts:AssumeRole"}
             ],
         }
     )
