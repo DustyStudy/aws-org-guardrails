@@ -43,4 +43,8 @@ USER 10001
 
 EXPOSE 8080
 
+# The ALB target group health check (main.tf) decides task health, and the
+# image has no curl or shell tooling to probe itself with.
+HEALTHCHECK NONE
+
 ENTRYPOINT ["claude", "gateway", "--config", "/etc/claude/gateway.yaml"]

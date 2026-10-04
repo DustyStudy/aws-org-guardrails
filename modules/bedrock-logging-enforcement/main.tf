@@ -88,6 +88,7 @@ resource "aws_sqs_queue" "dlq" {
   message_retention_seconds = 1209600
 }
 
+#trivy:ignore:AWS-0089 Starter template; see the CKV_AWS_18 skip below.
 resource "aws_s3_bucket" "bedrock_logs" {
   # checkov:skip=CKV_AWS_18: Server access logging omitted for this
   # starter template - add an access-log bucket like the one in
