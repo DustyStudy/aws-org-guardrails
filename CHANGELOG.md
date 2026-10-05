@@ -8,6 +8,14 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `core` bundle: optional `DenySesToIamUsers` statement
+  (`deny_ses_to_iam_users`, off by default) denies every Amazon SES action
+  to IAM users, so a leaked access key cannot send mail, verify a sender or
+  be used as an SES SMTP password. `ses_iam_user_exempt_principal_arns`
+  lists the SMTP users that must keep sending. Roles and Identity Center
+  sessions are unaffected. Threat:
+  [LevelBlue SpiderLabs, TIKTOUK (2026-10-01)](https://www.levelblue.com/blogs/spiderlabs-blog/tiktouk-tracing-a-wordpress-credential-collection-toolkit).
+  NIST SP 800-53 Rev5: AC-2, AC-6, IA-5, SC-5.
 - AI and ML guardrails from `aws-ai-guardrails` (v0.2.1), with git history:
   `ai-ml-guardrails`, `ai-agent-iam-auditor`, `bedrock-cost-guardrails`,
   `bedrock-logging-enforcement`, `sagemaker-notebook-exposure` and

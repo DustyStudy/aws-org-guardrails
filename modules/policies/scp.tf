@@ -92,6 +92,31 @@ locals {
         Condition = local.exempt
       },
     ] : [],
+    var.deny_ses_to_iam_users ? [
+      {
+        # Access keys scraped from web hosts are checked for SES first: the
+        # key's secret converts offline into an SES SMTP password, and a
+        # verified sender in a production-access account is worth more than
+        # the key itself (LevelBlue SpiderLabs, TIKTOUK, 2026-10-01). The
+        # SMTP endpoint authorizes as ses:SendRawEmail, so it is covered.
+        # ses:* is deliberate: quota checks, identity verification and the
+        # production-access request are all part of the same abuse, and an
+        # IAM user that is not a listed SMTP sender has no use for any of it.
+        # aws:PrincipalType is "User" only for IAM users, so roles and
+        # Identity Center sessions keep SES. The role exemption would never
+        # match a user, so this statement has its own user list instead.
+        Sid      = "DenySesToIamUsers"
+        Effect   = "Deny"
+        Action   = ["ses:*"]
+        Resource = "*"
+        Condition = merge(
+          { StringEquals = { "aws:PrincipalType" = "User" } },
+          length(var.ses_iam_user_exempt_principal_arns) > 0 ? {
+            ArnNotLike = { "aws:PrincipalArn" = var.ses_iam_user_exempt_principal_arns }
+          } : {}
+        )
+      },
+    ] : [],
   )
 
   security_services_statements = [

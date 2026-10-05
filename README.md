@@ -82,6 +82,7 @@ the guardrail protects.
 | | Deny everything to the member account root user | No |
 | | Deny creating or changing protected roles (`OrganizationAccountAccessRole`, `security-*`); every exempt role must be protected | Yes |
 | | Deny creating IAM users, access keys and console passwords (optional) | Yes |
+| | Deny every Amazon SES action to IAM users (optional, off by default; listed SMTP users keep it) | Own user list |
 | `security-services` | Deny stopping or changing CloudTrail and AWS Config recording | Yes |
 | | Deny disabling GuardDuty (including suppression filters), Security Hub and Access Analyzer | Yes |
 | `data-and-compute` | Deny disabling EBS encryption by default | Yes |

@@ -80,6 +80,18 @@ variable "deny_iam_user_credentials" {
   default     = true
 }
 
+variable "deny_ses_to_iam_users" {
+  description = "Deny every Amazon SES action to IAM users. Off by default; SES SMTP senders are IAM users and must be listed in ses_iam_user_exempt_principal_arns first."
+  type        = bool
+  default     = false
+}
+
+variable "ses_iam_user_exempt_principal_arns" {
+  description = "IAM user ARN patterns still allowed to use SES when deny_ses_to_iam_users is true."
+  type        = list(string)
+  default     = []
+}
+
 variable "protected_role_name_prefixes" {
   description = "Role name prefixes only exempt principals may change."
   type        = list(string)
