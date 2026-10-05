@@ -7,6 +7,7 @@ control on its own; each control also needs policy, procedure and evidence.
 | Control | Guardrail | Where |
 |---------|-----------|-------|
 | AC-2 Account Management | No IAM users, access keys or console passwords outside exempt roles; people sign in through Identity Center groups | `core/DenyIamUserCredentials`, `identity-center` |
+| AC-2, IA-5 Authenticator Management, SC-5 Denial-of-service Protection | A leaked IAM user access key cannot send mail through SES or be converted into an SES SMTP password (opt-in; listed SMTP users exempt) | `core/DenySesToIamUsers` |
 | AC-3 Access Enforcement | Organization-wide deny statements enforced by Organizations regardless of identity policies | all SCP bundles |
 | AC-5 Separation of Duties | Security tooling, logging and protected roles can be changed only by named security roles; workload principals cannot grant themselves more | `core/DenyProtectedRoleChanges`, `security-services`, permissions boundary |
 | AC-6 Least Privilege | Boundary caps delegated principals; permission sets require a boundary by default | permissions boundary, `identity-center` |

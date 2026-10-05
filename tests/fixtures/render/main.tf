@@ -16,6 +16,16 @@ variable "allowed_regions" {
   default = ["us-east-1", "us-west-2"]
 }
 
+variable "deny_ses_to_iam_users" {
+  type    = bool
+  default = false
+}
+
+variable "ses_iam_user_exempt_principal_arns" {
+  type    = list(string)
+  default = []
+}
+
 module "policies" {
   source = "../../../modules/policies"
 
@@ -25,6 +35,9 @@ module "policies" {
     "arn:${var.partition}:iam::*:role/security-breakglass",
     "arn:${var.partition}:iam::*:role/security-pipeline",
   ]
+
+  deny_ses_to_iam_users              = var.deny_ses_to_iam_users
+  ses_iam_user_exempt_principal_arns = var.ses_iam_user_exempt_principal_arns
 }
 
 output "scp_policies" {

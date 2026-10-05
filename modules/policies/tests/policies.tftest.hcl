@@ -27,6 +27,45 @@ run "iam_user_statement_is_optional" {
   }
 }
 
+run "ses_statement_is_off_by_default" {
+  command = plan
+
+  assert {
+    condition     = !strcontains(output.scp_policies["core"], "DenySesToIamUsers")
+    error_message = "DenySesToIamUsers must be opt-in: SES SMTP senders are IAM users."
+  }
+}
+
+run "ses_statement_keys_on_iam_users" {
+  command = plan
+
+  variables {
+    deny_ses_to_iam_users              = true
+    ses_iam_user_exempt_principal_arns = ["arn:aws:iam::*:user/ses-smtp-*"]
+  }
+
+  assert {
+    condition = one([
+      for s in jsondecode(output.scp_policies["core"]).Statement : s.Condition if s.Sid == "DenySesToIamUsers"
+      ]) == {
+      StringEquals = { "aws:PrincipalType" = "User" }
+      ArnNotLike   = { "aws:PrincipalArn" = ["arn:aws:iam::*:user/ses-smtp-*"] }
+    }
+    error_message = "The SES deny must apply to IAM users only, minus the listed SMTP users."
+  }
+}
+
+run "ses_exemption_must_be_an_iam_user" {
+  command = plan
+
+  variables {
+    deny_ses_to_iam_users              = true
+    ses_iam_user_exempt_principal_arns = ["arn:aws:iam::*:role/mailer"]
+  }
+
+  expect_failures = [var.ses_iam_user_exempt_principal_arns]
+}
+
 run "boundary_references_itself_by_account_variable" {
   command = plan
 

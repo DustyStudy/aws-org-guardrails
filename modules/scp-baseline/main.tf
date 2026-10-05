@@ -9,6 +9,9 @@ module "policies" {
   enable_region_restriction    = var.enable_region_restriction
   deny_iam_user_credentials    = var.deny_iam_user_credentials
   protected_role_name_prefixes = var.protected_role_name_prefixes
+
+  deny_ses_to_iam_users              = var.deny_ses_to_iam_users
+  ses_iam_user_exempt_principal_arns = var.ses_iam_user_exempt_principal_arns
 }
 
 locals {

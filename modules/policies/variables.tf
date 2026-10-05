@@ -95,6 +95,39 @@ variable "deny_iam_user_credentials" {
   default     = true
 }
 
+variable "deny_ses_to_iam_users" {
+  description = <<-EOT
+    Deny every Amazon SES action to IAM users, so a leaked access key cannot
+    send mail, verify a sender or be turned into an SES SMTP password. Off by
+    default: SES SMTP credentials are IAM users, so first list the senders
+    that must keep working in ses_iam_user_exempt_principal_arns.
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "ses_iam_user_exempt_principal_arns" {
+  description = "IAM user ARN patterns still allowed to use SES when deny_ses_to_iam_users is true (SES SMTP users). Wildcards allowed; keep it short."
+  type        = list(string)
+  default     = []
+  nullable    = false
+
+  validation {
+    condition = alltrue([
+      for arn in var.ses_iam_user_exempt_principal_arns :
+      can(regex("^arn:aws(-us-gov|-cn)?:iam::([*]|[0-9]{12}):user/.+$", arn))
+    ])
+    error_message = "Each exemption must be an IAM user ARN pattern such as arn:aws:iam::*:user/ses-smtp-*."
+  }
+
+  validation {
+    condition = alltrue([
+      for arn in var.ses_iam_user_exempt_principal_arns : split(":", arn)[1] == var.partition
+    ])
+    error_message = "Every exempt IAM user ARN must use the same partition as var.partition."
+  }
+}
+
 variable "protected_role_name_prefixes" {
   description = "Role name prefixes that only exempt principals may modify or delete (the org access role, security tooling roles and so on)."
   type        = list(string)

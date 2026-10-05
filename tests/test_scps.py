@@ -92,6 +92,38 @@ def test_long_lived_iam_user_credentials_are_denied(commercial, action):
     assert decide(commercial, req(action, BREAKGLASS)) is Decision.ALLOW
 
 
+IAM_USER = f"arn:aws:iam::{ACCOUNT}:user/wordpress-uploads"
+SMTP_USER = f"arn:aws:iam::{ACCOUNT}:user/ses-smtp-billing"
+SES_ABUSE = ["ses:SendRawEmail", "ses:GetSendQuota", "ses:CreateEmailIdentity", "ses:PutAccountDetails"]
+
+
+def test_ses_stays_open_to_iam_users_by_default(commercial):
+    # Off by default: SES SMTP senders are IAM users and would stop sending.
+    assert "DenySesToIamUsers" not in commercial.scps_raw["core"]
+
+
+@pytest.mark.parametrize("action", SES_ABUSE)
+def test_leaked_iam_user_key_cannot_use_ses(ses_locked, action):
+    request = req(action, IAM_USER, **{"aws:PrincipalType": "User"})
+    assert decide(ses_locked, request) is Decision.EXPLICIT_DENY
+
+
+def test_listed_smtp_user_and_roles_keep_ses(ses_locked):
+    smtp = req("ses:SendRawEmail", SMTP_USER, **{"aws:PrincipalType": "User"})
+    role = req("ses:SendEmail", WORKLOAD, **{"aws:PrincipalType": "AssumedRole"})
+    assert decide(ses_locked, smtp) is Decision.ALLOW
+    assert decide(ses_locked, role) is Decision.ALLOW
+
+
+def test_ses_deny_leaves_other_services_to_iam_users(ses_locked):
+    request = req("s3:GetObject", IAM_USER, **{"aws:PrincipalType": "User"})
+    assert decide(ses_locked, request) is Decision.ALLOW
+
+
+def test_core_bundle_with_ses_deny_fits_the_scp_size_limit(ses_locked):
+    assert len(ses_locked.scps_raw["core"]) <= SCP_MAX_CHARS
+
+
 @pytest.mark.parametrize(
     ("role", "expected"),
     [

@@ -36,12 +36,17 @@ def terraform_binary() -> str:
     return found
 
 
-def render(partition: str = "aws", allowed_regions: list[str] | None = None) -> RenderedPolicies:
+def render(
+    partition: str = "aws",
+    allowed_regions: list[str] | None = None,
+    extra_vars: dict[str, Any] | None = None,
+) -> RenderedPolicies:
     tf = terraform_binary()
     regions = allowed_regions or (
         ["us-gov-west-1", "us-gov-east-1"] if partition == "aws-us-gov" else ["us-east-1", "us-west-2"]
     )
     tf_vars = [f"-var=partition={partition}", f"-var=allowed_regions={json.dumps(regions)}"]
+    tf_vars += [f"-var={name}={json.dumps(value)}" for name, value in (extra_vars or {}).items()]
 
     with tempfile.TemporaryDirectory() as tmp:
         env = {**os.environ, "TF_DATA_DIR": str(Path(tmp) / ".terraform"), "TF_IN_AUTOMATION": "1"}
