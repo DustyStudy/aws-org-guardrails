@@ -6,6 +6,8 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-06
+
 ### Added
 
 - Second live proof (`proof/run2`): the five AI/ML SCPs, the Amazon SES and
@@ -30,6 +32,15 @@ uses [Semantic Versioning](https://semver.org/).
   `aws-ai-guardrails//terraform/<name>` to `aws-org-guardrails//modules/<name>`.
   That repo's own changelog is in this repo's history at
   `_ai/CHANGELOG.md` in commit `4367e71`.
+- `data-and-compute` bundle: `DenyExternalResourceShares` blocks creating
+  or updating a RAM resource share that allows principals outside the
+  organization, and `DenyAssociateToExternalShares` blocks adding
+  resources or principals to a share that already allows them. Exempt
+  roles can still share externally.
+- Live proof: `proof/main.tf` deploys the guardrails to a sandbox OU and
+  `proof/probe.py` checks them with real API calls, recording which policy
+  type denied each one. First run: 31 of 31 probes matched
+  ([docs/PROOF.md](docs/PROOF.md)).
 
 ### Changed
 
@@ -45,16 +56,6 @@ uses [Semantic Versioning](https://semver.org/).
 - `claude-apps-gateway`: inline Trivy ignores, with reasons, for the
   port-443 egress rule and the SSE-S3 ALB log bucket (ALB access logs
   support only SSE-S3).
-
-- `data-and-compute` bundle: `DenyExternalResourceShares` blocks creating
-  or updating a RAM resource share that allows principals outside the
-  organization, and `DenyAssociateToExternalShares` blocks adding
-  resources or principals to a share that already allows them. Exempt
-  roles can still share externally.
-- Live proof: `proof/main.tf` deploys the guardrails to a sandbox OU and
-  `proof/probe.py` checks them with real API calls, recording which policy
-  type denied each one. First run: 31 of 31 probes matched
-  ([docs/PROOF.md](docs/PROOF.md)).
 
 ## [0.2.1] - 2026-09-29
 
@@ -111,6 +112,7 @@ uses [Semantic Versioning](https://semver.org/).
 - CI: fmt, validate, TFLint, terraform test on Terraform 1.9 and 1.16,
   ruff, pytest, Checkov, Trivy and Gitleaks.
 
+[0.3.0]: https://github.com/DustyStudy/aws-org-guardrails/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/DustyStudy/aws-org-guardrails/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/DustyStudy/aws-org-guardrails/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/DustyStudy/aws-org-guardrails/compare/v0.1.0...v0.1.1

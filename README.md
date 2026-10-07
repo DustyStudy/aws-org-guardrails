@@ -109,7 +109,7 @@ works in every account.
 
 ```hcl
 module "scp_baseline" {
-  source = "github.com/DustyStudy/aws-org-guardrails//modules/scp-baseline?ref=v0.2.1"
+  source = "github.com/DustyStudy/aws-org-guardrails//modules/scp-baseline?ref=v0.3.0"
 
   target_ids = ["ou-ab12-cdefgh34"]
   exempt_principal_arns = [
