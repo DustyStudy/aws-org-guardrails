@@ -24,9 +24,9 @@ modules deploy to commercial regions and GovCloud.
 - **Result:** 86 Python tests (policy behavior plus the evaluator's own
   semantics) and 30 `terraform test` runs. IAM Access Analyzer reports 0
   findings on every rendered policy in both the commercial and GovCloud
-  partitions. [Deployed to a real organization and probed with 31 live API
-  calls](docs/PROOF.md), all matching, after the live run exposed two defects
-  the static checks missed. The module tests run against the
+  partitions. [Deployed to a real organization and probed with 62 live API
+  calls over two runs](docs/PROOF.md), all matching, after the first run
+  exposed two defects the static checks missed. The module tests run against the
   oldest and newest supported Terraform on every push. Mutation checks confirm
   the suite catches an inverted exemption, a hard-coded partition, an
   unscoped IMDSv2 rule and a missing global-service carve-out
@@ -158,8 +158,10 @@ Trivy and Gitleaks.
 
 ## Status and limits
 
-- **Live-tested in the commercial partition** on a sandbox OU (see
-  [docs/PROOF.md](docs/PROOF.md) for what was and was not covered). GovCloud
+- **Live-tested in the commercial partition** on a sandbox OU: the baseline
+  SCPs, the permissions boundary, the AI/ML SCPs and the `identity-center`
+  module (see [docs/PROOF.md](docs/PROOF.md) for what was and was not
+  covered). GovCloud
   is validated with Access Analyzer but not deployed. Access Analyzer and the
   live probes are not part of CI yet, because they need AWS credentials.
 - SCPs do not restrict service-linked roles or the management account.

@@ -1,9 +1,12 @@
 # What is verified, and what is not
 
-None of the AI/ML modules has been deployed to a live AWS account
-since they were refocused on AI and ML. The evidence is offline: plan-time
-tests, Lambda unit tests, static analysis, and IAM Access Analyzer policy
-validation. This page lists what each covers, the numbers from the last run,
+The five `ai-ml-guardrails` SCPs were attached in a real AWS organization
+on 2026-10-06 and probed with real Bedrock and SageMaker calls: 21 of 21
+matched. The results are in
+[PROOF.md](PROOF.md#run-2-2026-10-06-aiml-scps-newer-statements-and-identity-center).
+The other AI/ML modules have not been deployed; their evidence is offline:
+plan-time tests, Lambda unit tests, static analysis, and IAM Access
+Analyzer policy validation. This page lists what each covers, the numbers from the last run,
 and the gaps.
 
 Numbers are from a local run on 2026-09-29 (Terraform 1.16.4, Checkov
@@ -17,7 +20,7 @@ Numbers are from a local run on 2026-09-29 (Terraform 1.16.4, Checkov
 | pytest (the three Lambdas) | 24 passed |
 | `terraform validate` | 7 of 7 roots valid |
 | Checkov (`--framework terraform`, 118 resources) | 331 passed, 0 failed, 23 skipped |
-| IAM Access Analyzer `ValidatePolicy` (`SERVICE_CONTROL_POLICY`, commercial partition) | 0 findings on each of the 4 original SCPs; `deny-bedrock-long-term-credentials` (added 2026-09-30) not yet validated |
+| IAM Access Analyzer `ValidatePolicy` (`SERVICE_CONTROL_POLICY`, commercial partition) | 0 findings on each of the 4 original SCPs; `deny-bedrock-long-term-credentials` (added 2026-09-30) not yet validated, but probed live |
 | Trivy config scan, Gitleaks, `terraform fmt`, TFLint | Run in CI on every PR |
 
 Every Checkov skip is an inline `checkov:skip=<ID>: <reason>` comment next to
@@ -83,11 +86,11 @@ done
 
 ## Gaps
 
-- **No live deployment.** The tests show what Terraform will request and
-  that the policy grammar is valid. They do not show how AWS evaluates the
-  SCPs against real Bedrock and SageMaker calls. For SCPs probed with real
-  API calls, see the live proof in
-  [aws-org-guardrails](https://github.com/DustyStudy/aws-org-guardrails/blob/main/docs/PROOF.md).
+- **Live deployment covers the SCPs only.** `ai-agent-iam-auditor`,
+  `bedrock-cost-guardrails`, `bedrock-logging-enforcement` and
+  `sagemaker-notebook-exposure` have not been deployed. What the SCP run
+  left out is listed in
+  [PROOF.md](PROOF.md#not-covered-by-either-run).
 - **Only `ai-ml-guardrails` has a `terraform test` suite.** The other five
   modules are covered by `terraform validate`, Checkov, Trivy and TFLint,
   plus pytest for their Lambdas.
