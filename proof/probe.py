@@ -36,6 +36,7 @@ from botocore.exceptions import ClientError
 
 SCP = "scp"
 BOUNDARY = "boundary"
+IDENTITY = "identity policy"
 NOT_DENIED = "not denied"
 # Some services (Organizations, for one) deny without naming the policy type.
 UNNAMED_DENY = "denied, type not named"
@@ -67,6 +68,8 @@ def classify(session: boto3.Session, fn: Callable[[boto3.Session], object]) -> t
             return SCP, f"{code}: explicit deny in a service control policy"
         if "permissions boundary" in message:
             return BOUNDARY, f"{code}: denied by permissions boundary"
+        if "explicit deny in an identity-based policy" in message:
+            return IDENTITY, f"{code}: explicit deny in an identity-based policy"
         if code == "UnauthorizedOperation" and "Encoded authorization failure message" in message:
             return decode_ec2(session, message)
         if code in ("AccessDenied", "AccessDeniedException"):
