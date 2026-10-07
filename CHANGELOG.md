@@ -8,6 +8,11 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Second live proof (`proof/run2`): the five AI/ML SCPs, the Amazon SES and
+  AWS RAM statements and the `identity-center` module, deployed to a real
+  organization and probed with real API calls. 27 of 27 SCP probes, 6 of 6
+  Identity Center read-backs and 4 of 4 signed-in probes matched; no module
+  needed a change ([docs/PROOF.md](docs/PROOF.md)).
 - `core` bundle: optional `DenySesToIamUsers` statement
   (`deny_ses_to_iam_users`, off by default) denies every Amazon SES action
   to IAM users, so a leaked access key cannot send mail, verify a sender or

@@ -1,0 +1,5 @@
+management_profile     = "management-admin"
+sandbox_profile        = "sandbox-admin"
+sandbox_ou_id          = "ou-xxxx-xxxxxxxx"
+identity_center_region = "us-east-1"
+sso_user_name          = "jdoe"
