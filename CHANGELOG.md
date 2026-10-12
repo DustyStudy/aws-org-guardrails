@@ -6,6 +6,24 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `ai-agent-iam-auditor`: audits Bedrock AgentCore execution roles (trust
+  principal `bedrock-agentcore.amazonaws.com`) and flags
+  `sensitive_unscoped_actions` (AgentCore invoke, memory and API-key
+  actions and `secretsmanager:GetSecretValue` by default) allowed on `*`
+  or on a type-wide resource such as `runtime/*`, `memory/*` or
+  `secret:*`. Threat:
+  [Zenity Labs, AgentCorruption (2026-10-08)](https://labs.zenity.io/post/agentcorruption-how-a-single-prompt-collapsed-the-entire-cloud-security-model).
+  NIST SP 800-53 Rev5: AC-6, AC-6(1), AC-2(7), CA-7.
+
+### Changed
+
+- `ai-agent-iam-auditor`: the audit Lambda can read the account's
+  customer-managed policies as well as AWS managed ones, because the
+  AgentCore console creates the execution policy as customer-managed.
+  Existing deployments can report roles they did not report before.
+
 ## [0.3.0] - 2026-10-06
 
 ### Added

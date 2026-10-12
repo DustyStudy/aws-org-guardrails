@@ -210,7 +210,7 @@ separate reference deployment and is not shown.
 |---|---|---|
 | [`ai-ml-guardrails`](modules/ai-ml-guardrails) | Preventive | SCPs protecting Bedrock logging and Guardrails, an optional model allow-list, an optional deny of Bedrock to IAM users (LLMjacking), and SageMaker notebook lockdown |
 | [`bedrock-logging-enforcement`](modules/bedrock-logging-enforcement) | Auto-remediation | Re-enables Bedrock invocation logging if it's disabled |
-| [`ai-agent-iam-auditor`](modules/ai-agent-iam-auditor) | Detective | Flags over-permissioned IAM roles trusted by AI services or behind Bedrock Agent action groups |
+| [`ai-agent-iam-auditor`](modules/ai-agent-iam-auditor) | Detective | Flags over-permissioned IAM roles trusted by AI services (including Bedrock AgentCore) or behind Bedrock Agent action groups |
 | [`bedrock-cost-guardrails`](modules/bedrock-cost-guardrails) | Detective | Budget ceiling and anomaly detection on Bedrock spend |
 | [`sagemaker-notebook-exposure`](modules/sagemaker-notebook-exposure) | Auto-remediation | Locks down SageMaker notebooks with internet or root access enabled |
 | [`claude-apps-gateway`](modules/claude-apps-gateway) | Reference | Deployment reference for the Claude apps gateway on AWS |
