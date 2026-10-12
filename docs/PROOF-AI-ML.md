@@ -54,9 +54,11 @@ Lambda must and must not touch:
   left alone; a missing one is re-enabled and notified; logging to another
   bucket counts as drift; with no destination configured, the function
   refuses to act.
-- `ai-agent-iam-auditor` (8 tests): an AI-service role with admin rights is
+- `ai-agent-iam-auditor` (18 tests): an AI-service role with admin rights is
   flagged, a scoped one is not; a role found through both a trust policy
-  and a Bedrock Agent action group is reported once.
+  and a Bedrock Agent action group is reported once; a Bedrock AgentCore
+  role that can reach every runtime, memory or secret is flagged, one
+  scoped to its own agent is not.
 - `sagemaker-notebook-exposure` (8 tests): an exposed running notebook is
   tagged and stopped; a notebook whose update fails keeps its
   pending-remediation tag.

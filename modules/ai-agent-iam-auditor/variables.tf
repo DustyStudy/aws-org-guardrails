@@ -19,13 +19,36 @@ variable "schedule_expression" {
 variable "ai_service_principals" {
   type        = list(string)
   description = "Trust-policy service principals to treat as \"AI/agent\" roles."
-  default     = ["bedrock.amazonaws.com", "sagemaker.amazonaws.com", "q.amazonaws.com", "qbusiness.amazonaws.com"]
+  default = [
+    "bedrock.amazonaws.com",
+    "bedrock-agentcore.amazonaws.com",
+    "sagemaker.amazonaws.com",
+    "q.amazonaws.com",
+    "qbusiness.amazonaws.com",
+  ]
 }
 
 variable "sensitive_wildcard_services" {
   type        = list(string)
   description = "IAM service prefixes where \"<service>:*\" combined with Resource \"*\" is flagged as over-broad."
   default     = ["iam", "ec2", "s3", "kms", "organizations", "sts"]
+}
+
+variable "sensitive_unscoped_actions" {
+  type        = list(string)
+  description = <<-EOT
+    Actions flagged when a role may use them on every resource of their
+    type ("*", "runtime/*", "secret:*"). The defaults are the actions that
+    let one Bedrock AgentCore agent's execution role invoke other agents,
+    read and write their memory, and read tool credentials and secrets.
+  EOT
+  default = [
+    "bedrock-agentcore:InvokeAgentRuntime",
+    "bedrock-agentcore:ListEvents",
+    "bedrock-agentcore:CreateEvent",
+    "bedrock-agentcore:GetResourceApiKey",
+    "secretsmanager:GetSecretValue",
+  ]
 }
 
 variable "check_bedrock_agent_action_groups" {

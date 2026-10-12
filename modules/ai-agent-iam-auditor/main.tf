@@ -119,13 +119,16 @@ resource "aws_iam_role_policy" "lambda_exec" {
         Resource = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/*"
       },
       {
-        # Covers AWS managed policies, which is what's typically attached
-        # to roles this auditor inspects. If your org also attaches
-        # customer-managed policies to AI/agent roles, add
-        # arn:...:iam::<account_id>:policy/* to this Resource list.
-        Effect   = "Allow"
-        Action   = ["iam:GetPolicy", "iam:GetPolicyVersion"]
-        Resource = "arn:${data.aws_partition.current.partition}:iam::aws:policy/*"
+        # Read-only. Covers AWS managed policies and this account's
+        # customer-managed ones: the execution policy the console creates
+        # for a Bedrock AgentCore runtime is customer-managed, so the
+        # audit can't see it without the second ARN.
+        Effect = "Allow"
+        Action = ["iam:GetPolicy", "iam:GetPolicyVersion"]
+        Resource = [
+          "arn:${data.aws_partition.current.partition}:iam::aws:policy/*",
+          "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:policy/*",
+        ]
       },
       {
         # checkov:skip=CKV_AWS_355: Discovers Bedrock Agent action groups
@@ -197,6 +200,7 @@ resource "aws_lambda_function" "audit" {
       SNS_TOPIC_ARN                     = aws_sns_topic.audit.arn
       AI_SERVICE_PRINCIPALS             = join(",", var.ai_service_principals)
       SENSITIVE_WILDCARD_SERVICES       = join(",", var.sensitive_wildcard_services)
+      SENSITIVE_UNSCOPED_ACTIONS        = join(",", var.sensitive_unscoped_actions)
       CHECK_BEDROCK_AGENT_ACTION_GROUPS = tostring(var.check_bedrock_agent_action_groups)
     }
   }

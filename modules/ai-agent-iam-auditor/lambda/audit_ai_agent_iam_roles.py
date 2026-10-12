@@ -4,7 +4,8 @@ Scans every IAM role's trust policy for AI/agent service principals
 Lambda execution roles behind every Bedrock Agent's action groups - and
 for any matching role, checks its attached and inline policies for
 overly-broad grants: full admin, a service-wide wildcard on a sensitive
-service combined with Resource "*", or the AdministratorAccess managed
+service combined with Resource "*", a cross-agent or secret-reading
+action on every resource of its type, or the AdministratorAccess managed
 policy. Publishes a summary to SNS. Detective only - no remediation,
 since automatically stripping a role's permissions could break its
 intended function; a human should review and right-size these roles
@@ -36,12 +37,19 @@ Env vars:
   SNS_TOPIC_ARN               - where to send the audit summary
   AI_SERVICE_PRINCIPALS       - comma-separated list of trust-policy
                                 service principals to treat as "AI/agent"
-                                roles (default covers Bedrock, SageMaker,
-                                Amazon Q)
+                                roles (default covers Bedrock, Bedrock
+                                AgentCore, SageMaker, Amazon Q)
   SENSITIVE_WILDCARD_SERVICES - comma-separated list of IAM service
                                 prefixes where "<service>:*" + Resource "*"
                                 is flagged (default: iam, ec2, s3, kms,
                                 organizations, sts)
+  SENSITIVE_UNSCOPED_ACTIONS  - comma-separated list of actions flagged
+                                when allowed on every resource of their
+                                type ("*", "runtime/*", "secret:*"). The
+                                defaults are the actions that let one
+                                Bedrock AgentCore agent's role reach
+                                every other agent in the account:
+                                https://labs.zenity.io/post/agentcorruption-one-role-to-rule-them-all
   CHECK_BEDROCK_AGENT_ACTION_GROUPS - "true"/"false" - enable the Bedrock
                                 Agent action-group Lambda discovery path
                                 (default "true")
@@ -50,6 +58,8 @@ Env vars:
 import json
 import logging
 import os
+import re
+from fnmatch import fnmatchcase
 
 import boto3
 from botocore.exceptions import ClientError
@@ -67,7 +77,8 @@ AI_SERVICE_PRINCIPALS = [
     s.strip()
     for s in os.environ.get(
         "AI_SERVICE_PRINCIPALS",
-        "bedrock.amazonaws.com,sagemaker.amazonaws.com,q.amazonaws.com,qbusiness.amazonaws.com",
+        "bedrock.amazonaws.com,bedrock-agentcore.amazonaws.com,sagemaker.amazonaws.com,"
+        "q.amazonaws.com,qbusiness.amazonaws.com",
     ).split(",")
     if s.strip()
 ]
@@ -76,6 +87,18 @@ SENSITIVE_WILDCARD_SERVICES = [
     for s in os.environ.get("SENSITIVE_WILDCARD_SERVICES", "iam,ec2,s3,kms,organizations,sts").split(",")
     if s.strip()
 ]
+SENSITIVE_UNSCOPED_ACTIONS = [
+    s.strip()
+    for s in os.environ.get(
+        "SENSITIVE_UNSCOPED_ACTIONS",
+        "bedrock-agentcore:InvokeAgentRuntime,bedrock-agentcore:ListEvents,bedrock-agentcore:CreateEvent,"
+        "bedrock-agentcore:GetResourceApiKey,secretsmanager:GetSecretValue",
+    ).split(",")
+    if s.strip()
+]
+# A resource part that names a type and nothing else ("runtime/*",
+# "secret:*") covers every resource of that type.
+TYPE_WIDE_RESOURCE = re.compile("[A-Za-z0-9_-]+[/:][*]")
 CHECK_BEDROCK_AGENT_ACTION_GROUPS = os.environ.get("CHECK_BEDROCK_AGENT_ACTION_GROUPS", "true").lower() == "true"
 ADMIN_POLICY_ARN_SUFFIX = "/AdministratorAccess"
 
@@ -120,6 +143,21 @@ def _as_list(value):
     return value if isinstance(value, list) else [value]
 
 
+def _unscoped_resource(service, resources):
+    """Returns the first resource that covers every resource of a type in
+    `service`, or None. Other services' ARNs in the same statement are
+    ignored, so a wide log-group ARN doesn't flag a scoped secret."""
+    for resource in resources:
+        if resource == "*":
+            return resource
+        parts = resource.split(":", 5) if isinstance(resource, str) else []
+        if len(parts) != 6 or parts[2] not in (service, "*"):
+            continue
+        if parts[5] == "*" or TYPE_WIDE_RESOURCE.fullmatch(parts[5]):
+            return resource
+    return None
+
+
 def _statement_is_risky(statement):
     if statement.get("Effect") != "Allow":
         return None
@@ -143,6 +181,19 @@ def _statement_is_risky(statement):
             service, _, rest = action.partition(":")
             if rest == "*" and service in SENSITIVE_WILDCARD_SERVICES:
                 return f"service-wide wildcard action ({action}) with Resource '*'"
+
+    not_actions = [a.lower() for a in _as_list(statement.get("NotAction"))]
+    for sensitive in SENSITIVE_UNSCOPED_ACTIONS:
+        # IAM action wildcards (* and ?) mean the same thing to fnmatch.
+        # With NotAction, the action is granted unless a pattern excludes it.
+        listed = any(fnmatchcase(sensitive.lower(), action) for action in not_actions or actions)
+        if listed == bool(not_actions):
+            continue
+        if statement.get("NotResource") is not None:
+            return f"{sensitive} allowed with NotResource (every resource except the listed ones)"
+        resource = _unscoped_resource(sensitive.partition(":")[0].lower(), resources)
+        if resource:
+            return f"{sensitive} allowed on every resource of its type ({resource})"
 
     return None
 

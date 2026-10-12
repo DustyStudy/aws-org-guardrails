@@ -153,3 +153,74 @@ def test_role_found_both_ways_is_reported_once(make_fn):
     )
 
     assert _flagged(fn) == ["tool-role"]
+
+
+AGENTCORE = "bedrock-agentcore.amazonaws.com"
+
+
+def _agentcore_role(statement):
+    return {"roles": [_role("agent", AGENTCORE)], "inline": {"agent": {"p": {"Statement": [statement]}}}}
+
+
+@pytest.mark.parametrize(
+    ("action", "resource"),
+    [
+        ("bedrock-agentcore:InvokeAgentRuntime", "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/*"),
+        (["bedrock-agentcore:ListEvents", "bedrock-agentcore:CreateEvent"], "arn:aws:bedrock-agentcore:*:*:memory/*"),
+        ("bedrock-agentcore:Get*", "*"),
+        ("secretsmanager:GetSecretValue", "arn:aws:secretsmanager:us-east-1:123456789012:secret:*"),
+    ],
+)
+def test_agentcore_role_reaching_every_agent_is_flagged(make_fn, action, resource):
+    fn = make_fn(**_agentcore_role({"Effect": "Allow", "Action": action, "Resource": resource}))
+
+    assert _flagged(fn) == ["agent"]
+    assert "every resource of its type" in fn.sns.publish.call_args.kwargs["Message"]
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        {"Action": "secretsmanager:GetSecretValue", "NotResource": "arn:aws:s3:::excluded"},
+        {
+            "NotAction": "bedrock-agentcore:DeleteMemory",
+            "Resource": "arn:aws:bedrock-agentcore:us-east-1:123456789012:memory/*",
+        },
+    ],
+)
+def test_not_resource_and_not_action_grants_are_flagged(make_fn, statement):
+    fn = make_fn(**_agentcore_role({"Effect": "Allow", **statement}))
+
+    assert _flagged(fn) == ["agent"]
+
+
+def test_not_action_that_excludes_the_sensitive_actions_is_not_flagged(make_fn):
+    statement = {
+        "Effect": "Allow",
+        "NotAction": ["bedrock-agentcore:*", "secretsmanager:*"],
+        "Resource": "arn:aws:bedrock-agentcore:us-east-1:123456789012:memory/*",
+    }
+    fn = make_fn(**_agentcore_role(statement))
+
+    assert _flagged(fn) == []
+
+
+@pytest.mark.parametrize(
+    ("action", "resource"),
+    [
+        ("bedrock-agentcore:InvokeAgentRuntime", "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/mine-*"),
+        ("secretsmanager:GetSecretValue", "arn:aws:secretsmanager:us-east-1:123456789012:secret:agent/*"),
+        # A wide ARN from another service doesn't make the secret unscoped.
+        (
+            ["logs:DescribeLogGroups", "secretsmanager:GetSecretValue"],
+            [
+                "arn:aws:logs:us-east-1:123456789012:log-group:*",
+                "arn:aws:secretsmanager:us-east-1:123456789012:secret:agent-AbCdEf",
+            ],
+        ),
+    ],
+)
+def test_agentcore_role_scoped_to_its_own_agent_is_not_flagged(make_fn, action, resource):
+    fn = make_fn(**_agentcore_role({"Effect": "Allow", "Action": action, "Resource": resource}))
+
+    assert _flagged(fn) == []

@@ -1,7 +1,7 @@
 # ai-agent-iam-auditor (Terraform)
 
 Scans every IAM role's trust policy for AI/agent service principals
-(Bedrock, SageMaker, Amazon Q) on a schedule, and for any matching role,
+(Bedrock, Bedrock AgentCore, SageMaker, Amazon Q) on a schedule, and for any matching role,
 flags overly-broad attached/inline permissions. **Detective only** — never
 modifies anything.
 
@@ -37,11 +37,43 @@ There are two independent discovery paths, because they catch different roles:
    to disable this path.
 
 **Both paths converge on the same check:** for every discovered role, the
-Lambda inspects attached AWS-managed and inline policies for a full
+Lambda inspects attached managed and inline policies for a full
 wildcard action, a service-wide wildcard on one of
-`sensitive_wildcard_services` combined with `Resource: "*"`, or the
+`sensitive_wildcard_services` combined with `Resource: "*"`, one of
+`sensitive_unscoped_actions` on every resource of its type, or the
 `AdministratorAccess` managed policy. Any role with findings is included
 in a single SNS summary, noting how it was discovered.
+
+## Bedrock AgentCore execution roles
+
+Code running in an AgentCore agent can read its own execution role's
+credentials from the metadata service, so anyone who can steer the agent
+holds that role. Zenity Labs' AgentCorruption research
+([overview](https://labs.zenity.io/post/agentcorruption-how-a-single-prompt-collapsed-the-entire-cloud-security-model),
+[role detail](https://labs.zenity.io/post/agentcorruption-one-role-to-rule-them-all),
+2026-10-08) used a default role that allowed
+`bedrock-agentcore:InvokeAgentRuntime` on `runtime/*` and `ListEvents` and
+`CreateEvent` on `memory/*` to invoke every agent in the account and
+region, read their conversations and write to their memory. AWS narrowed
+the default role in September 2026; neither post says roles created
+before that were changed.
+
+The auditor finds roles trusted by `bedrock-agentcore.amazonaws.com` and
+flags any `sensitive_unscoped_actions` entry allowed on `*` or on a
+resource that names only a type (`runtime/*`, `memory/*`, `secret:*`). A
+resource scoped to the agent's own names (`runtime/my-agent-*`,
+`secret:my-agent/*`) is not flagged. Fix a finding by replacing the
+wildcard with the agent's own runtime, memory and secret ARNs.
+
+NIST SP 800-53 Rev5: AC-6, AC-6(1), AC-2(7), CA-7.
+
+Upgrade notes: the audit Lambda's role gains read access
+(`iam:GetPolicy`, `iam:GetPolicyVersion`) to the account's customer-managed
+policies, and the first run after upgrade can report roles it did not
+report before. Nothing is denied or changed in the audited account. To
+turn the new rules off, set `sensitive_unscoped_actions = []` and remove
+`bedrock-agentcore.amazonaws.com` from `ai_service_principals`;
+customer-managed policies are still evaluated by the older rules.
 
 ## Usage
 
@@ -63,8 +95,9 @@ Works the same in GovCloud.
 | `name_prefix` | Prefix for all resource names | `ai-agent-iam-auditor` |
 | `notification_email` | Email to subscribe to the SNS topic (optional) | `""` |
 | `schedule_expression` | EventBridge schedule | `rate(1 day)` |
-| `ai_service_principals` | Trust-policy service principals treated as "AI/agent" | Bedrock, SageMaker, Q, Q Business |
+| `ai_service_principals` | Trust-policy service principals treated as "AI/agent" | Bedrock, Bedrock AgentCore, SageMaker, Q, Q Business |
 | `sensitive_wildcard_services` | Services where `<service>:*` + `Resource: "*"` is flagged | iam, ec2, s3, kms, organizations, sts |
+| `sensitive_unscoped_actions` | Actions flagged when allowed on every resource of their type | AgentCore invoke, memory and API-key actions, `secretsmanager:GetSecretValue` |
 | `check_bedrock_agent_action_groups` | Also audit Bedrock Agent action-group Lambda roles | `true` |
 | `code_signing_config_arn` | ARN of an existing code-signing config (optional) | `null` |
 
@@ -84,10 +117,14 @@ Works the same in GovCloud.
   publishes agent versions independently from DRAFT and wants this
   covered, extend the Lambda to also call `ListAgentAliases`/
   `GetAgentVersion` for each alias's target version.
-- Only **AWS-managed** policies are evaluated by default (the Lambda's
-  IAM permissions are scoped to `arn:...:iam::aws:policy/*`). If your org
-  attaches customer-managed policies to AI/agent roles too, broaden the
-  `iam:GetPolicy`/`iam:GetPolicyVersion` resource scope in `main.tf`.
+- AWS-managed, customer-managed and inline policies are evaluated.
+  `Condition` blocks are not, so a statement that a condition narrows can
+  still be reported.
+- A type-wide resource is `*` or one type followed by a wildcard. A
+  wildcard deeper in a nested resource path (for example under an
+  AgentCore token vault) is not reported.
+- AgentCore roles are found by trust policy only. An agent whose role
+  trusts a principal outside `ai_service_principals` is not audited.
 - Purely additive to [`ai-ml-guardrails`](../ai-ml-guardrails/): the SCPs
   govern what AI services can do account-wide; this audits what specific
   agent roles can do, which SCPs generally can't see into.
