@@ -179,6 +179,33 @@ def test_agentcore_role_reaching_every_agent_is_flagged(make_fn, action, resourc
 
 
 @pytest.mark.parametrize(
+    "statement",
+    [
+        {"Action": "secretsmanager:GetSecretValue", "NotResource": "arn:aws:s3:::excluded"},
+        {
+            "NotAction": "bedrock-agentcore:DeleteMemory",
+            "Resource": "arn:aws:bedrock-agentcore:us-east-1:123456789012:memory/*",
+        },
+    ],
+)
+def test_not_resource_and_not_action_grants_are_flagged(make_fn, statement):
+    fn = make_fn(**_agentcore_role({"Effect": "Allow", **statement}))
+
+    assert _flagged(fn) == ["agent"]
+
+
+def test_not_action_that_excludes_the_sensitive_actions_is_not_flagged(make_fn):
+    statement = {
+        "Effect": "Allow",
+        "NotAction": ["bedrock-agentcore:*", "secretsmanager:*"],
+        "Resource": "arn:aws:bedrock-agentcore:us-east-1:123456789012:memory/*",
+    }
+    fn = make_fn(**_agentcore_role(statement))
+
+    assert _flagged(fn) == []
+
+
+@pytest.mark.parametrize(
     ("action", "resource"),
     [
         ("bedrock-agentcore:InvokeAgentRuntime", "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/mine-*"),

@@ -71,8 +71,9 @@ Upgrade notes: the audit Lambda's role gains read access
 (`iam:GetPolicy`, `iam:GetPolicyVersion`) to the account's customer-managed
 policies, and the first run after upgrade can report roles it did not
 report before. Nothing is denied or changed in the audited account. To
-return to the old behavior, set `sensitive_unscoped_actions = []` and
-remove `bedrock-agentcore.amazonaws.com` from `ai_service_principals`.
+turn the new rules off, set `sensitive_unscoped_actions = []` and remove
+`bedrock-agentcore.amazonaws.com` from `ai_service_principals`;
+customer-managed policies are still evaluated by the older rules.
 
 ## Usage
 
@@ -119,6 +120,9 @@ Works the same in GovCloud.
 - AWS-managed, customer-managed and inline policies are evaluated.
   `Condition` blocks are not, so a statement that a condition narrows can
   still be reported.
+- A type-wide resource is `*` or one type followed by a wildcard. A
+  wildcard deeper in a nested resource path (for example under an
+  AgentCore token vault) is not reported.
 - AgentCore roles are found by trust policy only. An agent whose role
   trusts a principal outside `ai_service_principals` is not audited.
 - Purely additive to [`ai-ml-guardrails`](../ai-ml-guardrails/): the SCPs

@@ -98,7 +98,7 @@ SENSITIVE_UNSCOPED_ACTIONS = [
 ]
 # A resource part that names a type and nothing else ("runtime/*",
 # "secret:*") covers every resource of that type.
-TYPE_WIDE_RESOURCE = re.compile("[a-z-]+[/:][*]")
+TYPE_WIDE_RESOURCE = re.compile("[A-Za-z0-9_-]+[/:][*]")
 CHECK_BEDROCK_AGENT_ACTION_GROUPS = os.environ.get("CHECK_BEDROCK_AGENT_ACTION_GROUPS", "true").lower() == "true"
 ADMIN_POLICY_ARN_SUFFIX = "/AdministratorAccess"
 
@@ -182,12 +182,18 @@ def _statement_is_risky(statement):
             if rest == "*" and service in SENSITIVE_WILDCARD_SERVICES:
                 return f"service-wide wildcard action ({action}) with Resource '*'"
 
+    not_actions = [a.lower() for a in _as_list(statement.get("NotAction"))]
     for sensitive in SENSITIVE_UNSCOPED_ACTIONS:
         # IAM action wildcards (* and ?) mean the same thing to fnmatch.
-        if any(fnmatchcase(sensitive.lower(), action) for action in actions):
-            resource = _unscoped_resource(sensitive.partition(":")[0].lower(), resources)
-            if resource:
-                return f"{sensitive} allowed on every resource of its type ({resource})"
+        # With NotAction, the action is granted unless a pattern excludes it.
+        listed = any(fnmatchcase(sensitive.lower(), action) for action in not_actions or actions)
+        if listed == bool(not_actions):
+            continue
+        if statement.get("NotResource") is not None:
+            return f"{sensitive} allowed with NotResource (every resource except the listed ones)"
+        resource = _unscoped_resource(sensitive.partition(":")[0].lower(), resources)
+        if resource:
+            return f"{sensitive} allowed on every resource of its type ({resource})"
 
     return None
 

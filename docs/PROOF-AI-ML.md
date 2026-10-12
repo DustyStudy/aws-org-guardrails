@@ -54,7 +54,7 @@ Lambda must and must not touch:
   left alone; a missing one is re-enabled and notified; logging to another
   bucket counts as drift; with no destination configured, the function
   refuses to act.
-- `ai-agent-iam-auditor` (15 tests): an AI-service role with admin rights is
+- `ai-agent-iam-auditor` (18 tests): an AI-service role with admin rights is
   flagged, a scoped one is not; a role found through both a trust policy
   and a Bedrock Agent action group is reported once; a Bedrock AgentCore
   role that can reach every runtime, memory or secret is flagged, one
