@@ -10,6 +10,8 @@ module "policies" {
   deny_iam_user_credentials    = var.deny_iam_user_credentials
   protected_role_name_prefixes = var.protected_role_name_prefixes
 
+  deny_service_specific_credentials = var.deny_service_specific_credentials
+
   deny_ses_to_iam_users              = var.deny_ses_to_iam_users
   ses_iam_user_exempt_principal_arns = var.ses_iam_user_exempt_principal_arns
 }

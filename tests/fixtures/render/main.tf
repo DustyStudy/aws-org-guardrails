@@ -16,6 +16,11 @@ variable "allowed_regions" {
   default = ["us-east-1", "us-west-2"]
 }
 
+variable "deny_service_specific_credentials" {
+  type    = bool
+  default = false
+}
+
 variable "deny_ses_to_iam_users" {
   type    = bool
   default = false
@@ -35,6 +40,8 @@ module "policies" {
     "arn:${var.partition}:iam::*:role/security-breakglass",
     "arn:${var.partition}:iam::*:role/security-pipeline",
   ]
+
+  deny_service_specific_credentials = var.deny_service_specific_credentials
 
   deny_ses_to_iam_users              = var.deny_ses_to_iam_users
   ses_iam_user_exempt_principal_arns = var.ses_iam_user_exempt_principal_arns

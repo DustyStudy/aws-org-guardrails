@@ -92,6 +92,29 @@ def test_long_lived_iam_user_credentials_are_denied(commercial, action):
     assert decide(commercial, req(action, BREAKGLASS)) is Decision.ALLOW
 
 
+SSC_MINT = ["iam:CreateServiceSpecificCredential", "iam:ResetServiceSpecificCredential"]
+
+
+def test_service_specific_credentials_stay_open_by_default(commercial):
+    assert "DenyServiceSpecificCredentials" not in commercial.scps_raw["core"]
+
+
+@pytest.mark.parametrize("action", SSC_MINT)
+def test_bedrock_api_keys_and_git_credentials_cannot_be_minted(ssc_locked, action):
+    assert decide(ssc_locked, req(action)) is Decision.EXPLICIT_DENY
+    assert decide(ssc_locked, req(action, BREAKGLASS)) is Decision.ALLOW
+
+
+def test_service_specific_credentials_can_still_be_deactivated(ssc_locked):
+    # Responders outside the exempt roles must still be able to switch one off.
+    assert decide(ssc_locked, req("iam:UpdateServiceSpecificCredential")) is Decision.ALLOW
+    assert decide(ssc_locked, req("iam:DeleteServiceSpecificCredential")) is Decision.ALLOW
+
+
+def test_core_bundle_with_service_specific_credential_deny_fits_the_scp_size_limit(ssc_locked):
+    assert len(ssc_locked.scps_raw["core"]) <= SCP_MAX_CHARS
+
+
 IAM_USER = f"arn:aws:iam::{ACCOUNT}:user/wordpress-uploads"
 SMTP_USER = f"arn:aws:iam::{ACCOUNT}:user/ses-smtp-billing"
 SES_ABUSE = ["ses:SendRawEmail", "ses:GetSendQuota", "ses:CreateEmailIdentity", "ses:PutAccountDetails"]

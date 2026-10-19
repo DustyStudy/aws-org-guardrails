@@ -14,6 +14,7 @@ output to evaluate the policies.
 | `allowed_regions` | `["us-east-1", "us-west-2"]` | Regions workloads may use. Must match the partition. |
 | `enable_region_restriction` | `true` | Render the `region-restriction` bundle. |
 | `deny_iam_user_credentials` | `true` | Deny IAM users, access keys and console passwords. |
+| `deny_service_specific_credentials` | `false` | Deny creating or resetting service-specific credentials (Bedrock API keys, CodeCommit Git credentials, Keyspaces passwords) outside exempt roles. Breaks pipelines that issue them from other roles. |
 | `deny_ses_to_iam_users` | `false` | Deny every SES action to IAM users (leaked keys used for SES and SMTP abuse). Breaks SES SMTP senders that are not exempted. |
 | `ses_iam_user_exempt_principal_arns` | `[]` | IAM user ARN patterns that keep SES, such as `arn:aws:iam::*:user/ses-smtp-*`. |
 | `protected_role_name_prefixes` | `["OrganizationAccountAccessRole", "security-"]` | Roles only exempt principals may change. |

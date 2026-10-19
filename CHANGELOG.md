@@ -8,6 +8,17 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `core` bundle: optional `DenyServiceSpecificCredentials` statement
+  (`deny_service_specific_credentials`, off by default) denies
+  `iam:CreateServiceSpecificCredential` and
+  `iam:ResetServiceSpecificCredential` outside the exempt roles, so a
+  stolen identity cannot add a Bedrock API key, CodeCommit Git credential
+  or Keyspaces password to an existing IAM user as a second way in.
+  Deactivating and deleting these credentials stays open. Threat:
+  [FortiGuard Labs, Bedrock LLMjacking (2026-09-03)](https://www.fortinet.com/blog/threat-research/someone-else-is-using-your-ai),
+  [StepSecurity, GhostAction returns (2026-10-09)](https://www.stepsecurity.io/blog/ghostaction-returns).
+  NIST SP 800-53 Rev5: AC-2, IA-5.
+
 - `ai-agent-iam-auditor`: audits Bedrock AgentCore execution roles (trust
   principal `bedrock-agentcore.amazonaws.com`) and flags
   `sensitive_unscoped_actions` (AgentCore invoke, memory and API-key
