@@ -92,6 +92,28 @@ locals {
         Condition = local.exempt
       },
     ] : [],
+    var.deny_service_specific_credentials ? [
+      {
+        # A Bedrock API key, CodeCommit Git password or Keyspaces password is
+        # a long-term secret bound to an existing IAM user, and minting one
+        # needs no access key. LLMjacking actors add a Bedrock API key to the
+        # identity they control as a second way in (FortiGuard Labs,
+        # 2026-09-03); harvested keys keep feeding them (StepSecurity,
+        # GhostAction, 2026-10-09). DenyIamUserCredentials stops new users
+        # and access keys, not these. Reset issues a new secret for an
+        # existing credential, so it is denied too. Update only switches a
+        # credential between Active and Inactive and stays open, so anyone
+        # can still deactivate one.
+        Sid    = "DenyServiceSpecificCredentials"
+        Effect = "Deny"
+        Action = [
+          "iam:CreateServiceSpecificCredential",
+          "iam:ResetServiceSpecificCredential",
+        ]
+        Resource  = "*"
+        Condition = local.exempt
+      },
+    ] : [],
     var.deny_ses_to_iam_users ? [
       {
         # Access keys scraped from web hosts are checked for SES first: the

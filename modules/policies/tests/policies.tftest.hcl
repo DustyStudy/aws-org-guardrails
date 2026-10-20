@@ -27,6 +27,30 @@ run "iam_user_statement_is_optional" {
   }
 }
 
+run "service_specific_credential_statement_is_opt_in" {
+  command = plan
+
+  assert {
+    condition     = !strcontains(output.scp_policies["core"], "DenyServiceSpecificCredentials")
+    error_message = "DenyServiceSpecificCredentials must be opt-in: it can break pipelines that issue these credentials."
+  }
+}
+
+run "service_specific_credential_statement_is_exempted" {
+  command = plan
+
+  variables {
+    deny_service_specific_credentials = true
+  }
+
+  assert {
+    condition = jsonencode(one([
+      for s in jsondecode(output.scp_policies["core"]).Statement : s.Condition if s.Sid == "DenyServiceSpecificCredentials"
+    ])) == jsonencode({ ArnNotLike = { "aws:PrincipalArn" = var.exempt_principal_arns } })
+    error_message = "The service-specific credential deny must carry the standard role exemption."
+  }
+}
+
 run "ses_statement_is_off_by_default" {
   command = plan
 

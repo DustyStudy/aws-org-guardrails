@@ -80,6 +80,12 @@ variable "deny_iam_user_credentials" {
   default     = true
 }
 
+variable "deny_service_specific_credentials" {
+  description = "Deny creating or resetting IAM service-specific credentials (Bedrock API keys, CodeCommit and Keyspaces passwords) outside exempt roles. Off by default."
+  type        = bool
+  default     = false
+}
+
 variable "deny_ses_to_iam_users" {
   description = "Deny every Amazon SES action to IAM users. Off by default; SES SMTP senders are IAM users and must be listed in ses_iam_user_exempt_principal_arns first."
   type        = bool

@@ -95,6 +95,17 @@ variable "deny_iam_user_credentials" {
   default     = true
 }
 
+variable "deny_service_specific_credentials" {
+  description = <<-EOT
+    Deny creating or resetting IAM service-specific credentials (Bedrock API
+    keys, CodeCommit Git credentials, Amazon Keyspaces passwords) outside the
+    exempt roles. Off by default: a pipeline that issues these credentials
+    from a non-exempt role stops working.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "deny_ses_to_iam_users" {
   description = <<-EOT
     Deny every Amazon SES action to IAM users, so a leaked access key cannot
