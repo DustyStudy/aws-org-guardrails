@@ -86,6 +86,12 @@ variable "deny_service_specific_credentials" {
   default     = false
 }
 
+variable "require_imds_hop_limit_one" {
+  description = "Deny launching an instance unless its IMDS hop limit is 1, so bridge-networked containers cannot fetch the instance role's credentials. Off by default; container hosts that need IMDS use 2. Auto Scaling and EKS managed node group launches are not covered."
+  type        = bool
+  default     = false
+}
+
 variable "deny_ses_to_iam_users" {
   description = "Deny every Amazon SES action to IAM users. Off by default; SES SMTP senders are IAM users and must be listed in ses_iam_user_exempt_principal_arns first."
   type        = bool

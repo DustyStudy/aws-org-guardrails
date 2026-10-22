@@ -51,6 +51,33 @@ run "service_specific_credential_statement_is_exempted" {
   }
 }
 
+run "imds_hop_limit_statement_is_opt_in" {
+  command = plan
+
+  assert {
+    condition     = !strcontains(output.scp_policies["data-and-compute"], "RequireImdsHopLimitOne")
+    error_message = "RequireImdsHopLimitOne must be opt-in: EKS nodes and other container hosts use a hop limit of 2."
+  }
+}
+
+run "imds_hop_limit_statement_is_exempted" {
+  command = plan
+
+  variables {
+    require_imds_hop_limit_one = true
+  }
+
+  assert {
+    condition = jsonencode(one([
+      for s in jsondecode(output.scp_policies["data-and-compute"]).Statement : s.Condition if s.Sid == "RequireImdsHopLimitOne"
+      ])) == jsonencode({
+      ArnNotLike       = { "aws:PrincipalArn" = var.exempt_principal_arns }
+      NumericNotEquals = { "ec2:MetadataHttpPutResponseHopLimit" = "1" }
+    })
+    error_message = "The hop-limit deny must carry the standard role exemption and require a hop limit of 1."
+  }
+}
+
 run "ses_statement_is_off_by_default" {
   command = plan
 

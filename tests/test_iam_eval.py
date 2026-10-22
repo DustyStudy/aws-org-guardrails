@@ -173,3 +173,21 @@ def test_unknown_statement_elements_fail_loudly():
         evaluate(
             [policy({"Effect": "Deny", "Action": "*", "Resource": "*", "Principal": "*"})], Request("s3:GetObject")
         )
+
+
+def _numeric_deny(value):
+    return policy({"Effect": "Deny", "Action": "*", "Resource": "*", "Condition": {"NumericNotEquals": {"hop": value}}})
+
+
+@pytest.mark.parametrize(
+    ("actual", "expected"),
+    [("1", Decision.IMPLICIT_DENY), ("1.0", Decision.IMPLICIT_DENY), ("2", Decision.EXPLICIT_DENY)],
+)
+def test_numeric_not_equals_compares_numbers(actual, expected):
+    assert evaluate([_numeric_deny("1")], Request("ec2:RunInstances", "*", {"hop": actual})) is expected
+
+
+@pytest.mark.parametrize("value", ["${expected}", "one", "NaN", "Infinity"])
+def test_numeric_operators_reject_variables_and_non_numbers(value):
+    with pytest.raises(UnsupportedPolicyFeature):
+        evaluate([_numeric_deny(value)], Request("ec2:RunInstances", "*", {"hop": "1", "expected": "1"}))

@@ -31,5 +31,10 @@ def ssc_locked() -> RenderedPolicies:
 
 
 @pytest.fixture(scope="session")
+def hop_locked() -> RenderedPolicies:
+    return render(extra_vars={"require_imds_hop_limit_one": True})
+
+
+@pytest.fixture(scope="session")
 def govcloud() -> RenderedPolicies:
     return render(partition="aws-us-gov")

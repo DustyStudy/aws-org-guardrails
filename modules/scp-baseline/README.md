@@ -18,6 +18,7 @@ The partition comes from the provider, so the same call works in GovCloud.
 | `enable_region_restriction` | `true` | Passed to `policies`. |
 | `deny_iam_user_credentials` | `true` | Passed to `policies`. |
 | `deny_service_specific_credentials` | `false` | Passed to `policies`. |
+| `require_imds_hop_limit_one` | `false` | Passed to `policies`. |
 | `deny_ses_to_iam_users` | `false` | Passed to `policies`. |
 | `ses_iam_user_exempt_principal_arns` | `[]` | Passed to `policies`. |
 | `protected_role_name_prefixes` | see `policies` | Passed to `policies`. |

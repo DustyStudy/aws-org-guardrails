@@ -24,6 +24,7 @@ which sends the same rendered documents to IAM Access Analyzer.
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
@@ -130,6 +131,20 @@ def _bool(pattern: str, value: str) -> bool:
     return pattern.lower() == value.lower()
 
 
+def _number(text: str) -> float:
+    try:
+        number = float(text)
+    except ValueError:
+        raise UnsupportedPolicyFeature(f"not a number: {text!r}") from None
+    if not math.isfinite(number):
+        raise UnsupportedPolicyFeature(f"not a finite number: {text!r}")
+    return number
+
+
+def _numeric_equals(pattern: str, value: str) -> bool:
+    return _number(pattern) == _number(value)
+
+
 # name -> (matcher, negated)
 _OPERATORS: dict[str, tuple[Any, bool]] = {
     "StringEquals": (_string_equals, False),
@@ -144,6 +159,8 @@ _OPERATORS: dict[str, tuple[Any, bool]] = {
     "ArnNotEquals": (_string_like, True),
     "ArnNotLike": (_string_like, True),
     "Bool": (_bool, False),
+    "NumericEquals": (_numeric_equals, False),
+    "NumericNotEquals": (_numeric_equals, True),
 }
 
 
@@ -170,6 +187,9 @@ def _condition_holds(operator: str, key: str, values: Any, request: Request) -> 
 
     matched = False
     for raw in _as_list(values):
+        if base.startswith("Numeric") and "${" in str(raw):
+            # IAM substitutes policy variables only in string and ARN operators.
+            raise UnsupportedPolicyFeature(f"policy variable in {operator!r} is not supported")
         pattern = substitute_variables(str(raw), request)
         if pattern is not None and matcher(pattern, actual):
             matched = True

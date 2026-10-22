@@ -15,6 +15,7 @@ output to evaluate the policies.
 | `enable_region_restriction` | `true` | Render the `region-restriction` bundle. |
 | `deny_iam_user_credentials` | `true` | Deny IAM users, access keys and console passwords. |
 | `deny_service_specific_credentials` | `false` | Deny creating or resetting service-specific credentials (Bedrock API keys, CodeCommit Git credentials, Keyspaces passwords) outside exempt roles. Breaks pipelines that issue them from other roles. |
+| `require_imds_hop_limit_one` | `false` | Deny launching an instance unless its IMDS hop limit is 1, so bridge-networked containers on it cannot fetch the instance role's credentials. Host-networked containers still can. Launches that leave the hop limit unset are denied too. Breaks pipelines and node provisioners such as Karpenter that launch with a hop limit of 2 from a non-exempt role. Auto Scaling and EKS managed node groups launch through service-linked roles, which SCPs do not restrict, so those launches are neither broken nor covered. |
 | `deny_ses_to_iam_users` | `false` | Deny every SES action to IAM users (leaked keys used for SES and SMTP abuse). Breaks SES SMTP senders that are not exempted. |
 | `ses_iam_user_exempt_principal_arns` | `[]` | IAM user ARN patterns that keep SES, such as `arn:aws:iam::*:user/ses-smtp-*`. |
 | `protected_role_name_prefixes` | `["OrganizationAccountAccessRole", "security-"]` | Roles only exempt principals may change. |

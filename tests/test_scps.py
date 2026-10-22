@@ -229,6 +229,39 @@ def test_imds_rule_only_applies_to_the_instance_resource(commercial):
     assert decide(commercial, req("ec2:RunInstances", resource=subnet)) is Decision.ALLOW
 
 
+def _launch(principal=WORKLOAD, **context):
+    instance = f"arn:aws:ec2:us-east-1:{ACCOUNT}:instance/*"
+    return req("ec2:RunInstances", principal, resource=instance, **{"ec2:MetadataHttpTokens": "required", **context})
+
+
+def test_imds_hop_limit_stays_open_by_default(commercial):
+    assert "RequireImdsHopLimitOne" not in commercial.scps_raw["data-and-compute"]
+    assert decide(commercial, _launch(**{"ec2:MetadataHttpPutResponseHopLimit": "2"})) is Decision.ALLOW
+
+
+def test_containers_cannot_be_given_a_route_to_the_instance_role(hop_locked):
+    hop_one = _launch(**{"ec2:MetadataHttpPutResponseHopLimit": "1"})
+    hop_two = _launch(**{"ec2:MetadataHttpPutResponseHopLimit": "2"})
+    assert decide(hop_locked, hop_one) is Decision.ALLOW
+    assert decide(hop_locked, hop_two) is Decision.EXPLICIT_DENY
+    # Leaving it out is denied too: the AMI's default can be 2.
+    assert decide(hop_locked, _launch()) is Decision.EXPLICIT_DENY
+
+
+def test_exempt_roles_can_launch_with_a_higher_hop_limit(hop_locked):
+    hop_two = _launch(BREAKGLASS, **{"ec2:MetadataHttpPutResponseHopLimit": "2"})
+    assert decide(hop_locked, hop_two) is Decision.ALLOW
+
+
+def test_hop_limit_rule_only_applies_to_the_instance_resource(hop_locked):
+    subnet = f"arn:aws:ec2:us-east-1:{ACCOUNT}:subnet/subnet-0abc"
+    assert decide(hop_locked, req("ec2:RunInstances", resource=subnet)) is Decision.ALLOW
+
+
+def test_data_and_compute_bundle_with_hop_limit_fits_the_scp_size_limit(hop_locked):
+    assert len(hop_locked.scps_raw["data-and-compute"]) <= SCP_MAX_CHARS
+
+
 @pytest.mark.parametrize(
     "action",
     ["ec2:DisableEbsEncryptionByDefault", "s3:PutAccountPublicAccessBlock", "ec2:ModifyInstanceMetadataOptions"],

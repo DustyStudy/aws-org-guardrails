@@ -12,6 +12,7 @@ control on its own; each control also needs policy, procedure and evidence.
 | AC-3 Access Enforcement | Organization-wide deny statements enforced by Organizations regardless of identity policies | all SCP bundles |
 | AC-5 Separation of Duties | Security tooling, logging and protected roles can be changed only by named security roles; workload principals cannot grant themselves more | `core/DenyProtectedRoleChanges`, `security-services`, permissions boundary |
 | AC-6 Least Privilege | Boundary caps delegated principals; permission sets require a boundary by default | permissions boundary, `identity-center` |
+| AC-6, SC-7 Least Privilege, Boundary Protection | Instances launch with an IMDS hop limit of 1, so bridge-networked containers cannot fetch the instance role's credentials (opt-in; host-networked containers and launches by service-linked roles are not covered) | `data-and-compute/RequireImdsHopLimitOne` |
 | AC-6(1) Authorize Access to Security Functions | Only exempt security roles can change CloudTrail, Config, GuardDuty, Security Hub and Access Analyzer | `security-services` |
 | AC-6(5) Privileged Accounts | Member account root user denied; organization access role protected | `core/DenyRootUser`, `core/DenyProtectedRoleChanges` |
 | AC-6(10) Prohibit Non-privileged Users from Executing Privileged Functions | Delegated principals cannot change Organizations or account settings, remove boundaries or modify roles outside their path | permissions boundary |
