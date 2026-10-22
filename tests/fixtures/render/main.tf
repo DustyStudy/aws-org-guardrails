@@ -21,6 +21,11 @@ variable "deny_service_specific_credentials" {
   default = false
 }
 
+variable "require_imds_hop_limit_one" {
+  type    = bool
+  default = false
+}
+
 variable "deny_ses_to_iam_users" {
   type    = bool
   default = false
@@ -42,6 +47,7 @@ module "policies" {
   ]
 
   deny_service_specific_credentials = var.deny_service_specific_credentials
+  require_imds_hop_limit_one        = var.require_imds_hop_limit_one
 
   deny_ses_to_iam_users              = var.deny_ses_to_iam_users
   ses_iam_user_exempt_principal_arns = var.ses_iam_user_exempt_principal_arns

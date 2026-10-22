@@ -179,7 +179,7 @@ locals {
     },
   ]
 
-  data_and_compute_statements = [
+  data_and_compute_statements = concat([
     {
       Sid       = "ProtectEbsDefaultEncryption"
       Effect    = "Deny"
@@ -231,7 +231,27 @@ locals {
       Resource  = "*"
       Condition = merge(local.exempt, { Bool = { "ram:AllowsExternalPrincipals" = "true" } })
     },
-  ]
+    ], var.require_imds_hop_limit_one ? [
+    {
+      # A container on an instance reaches the instance role's credentials
+      # through IMDS only when the hop limit is 2 or more. The backdoored
+      # LiteLLM 1.107.0 Docker image queried IMDSv2 for role credentials
+      # (StepSecurity, 2026-10-21). A hop limit of 1 keeps bridge-networked
+      # containers out; host-networked containers and processes on the host
+      # still reach IMDS. NumericNotEquals is true when the key is missing,
+      # so callers must set the hop limit, as with RequireImdsV2OnLaunch.
+      # DenyImdsDowngrade already stops raising it after launch. Launches by
+      # service-linked roles (Auto Scaling, EKS managed node groups) are
+      # outside SCPs, so this neither breaks nor covers them.
+      Sid      = "RequireImdsHopLimitOne"
+      Effect   = "Deny"
+      Action   = ["ec2:RunInstances"]
+      Resource = "arn:${local.p}:ec2:*:*:instance/*"
+      Condition = merge(local.exempt, {
+        NumericNotEquals = { "ec2:MetadataHttpPutResponseHopLimit" = "1" }
+      })
+    },
+  ] : [])
 
   # Global services and the handful of regional actions they depend on. They
   # are served from a single region (us-east-1 in the commercial partition),

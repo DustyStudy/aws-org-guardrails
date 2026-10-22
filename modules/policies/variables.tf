@@ -106,6 +106,19 @@ variable "deny_service_specific_credentials" {
   default     = false
 }
 
+variable "require_imds_hop_limit_one" {
+  description = <<-EOT
+    Deny launching an instance unless its IMDS hop limit is set to 1, so
+    bridge-networked containers on it cannot fetch the instance role's
+    credentials. Off by default: hosts whose containers need IMDS use a hop
+    limit of 2, and launches that leave the hop limit unset are denied.
+    Launches by service-linked roles (Auto Scaling, EKS managed node groups)
+    are outside SCPs and not covered.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "deny_ses_to_iam_users" {
   description = <<-EOT
     Deny every Amazon SES action to IAM users, so a leaked access key cannot

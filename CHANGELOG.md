@@ -8,6 +8,20 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `data-and-compute` bundle: optional `RequireImdsHopLimitOne` statement
+  (`require_imds_hop_limit_one`, off by default) denies `ec2:RunInstances`
+  unless `ec2:MetadataHttpPutResponseHopLimit` is 1, outside the exempt
+  roles. A bridge-networked container then cannot reach IMDS for the
+  instance role's credentials. Launches that leave the hop limit unset are
+  denied too. Host-networked containers still reach IMDS, and launches by
+  service-linked roles (Auto Scaling, EKS managed node groups) are outside
+  SCPs. Threat:
+  [StepSecurity, LiteLLM 1.107.0 compromised on PyPI and Docker (2026-10-21)](https://www.stepsecurity.io/blog/litellm-1-107-0-compromised-pypi-backdoored-wheels-credential-stealer):
+  the backdoored image queried IMDSv2 for role credentials.
+  NIST SP 800-53 Rev5: AC-6, SC-7. The test evaluator gains
+  `NumericEquals` and `NumericNotEquals`, which reject policy variables and
+  non-numeric values.
+
 - `core` bundle: optional `DenyServiceSpecificCredentials` statement
   (`deny_service_specific_credentials`, off by default) denies
   `iam:CreateServiceSpecificCredential` and

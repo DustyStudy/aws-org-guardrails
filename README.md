@@ -89,6 +89,7 @@ the guardrail protects.
 | `data-and-compute` | Deny disabling EBS encryption by default | Yes |
 | | Deny changing the account-level S3 Block Public Access | Yes |
 | | Deny launching instances without IMDSv2 | No |
+| | Deny launching instances with an IMDS hop limit other than 1, so bridge-networked containers cannot fetch the instance role's credentials (optional, off by default; Auto Scaling and EKS managed node group launches are not covered) | Yes |
 | | Deny changing instance metadata options on running instances | Yes |
 | | Deny RAM resource shares that allow principals outside the organization, and adding to existing ones | Yes |
 | `region-restriction` | Deny regional services outside `allowed_regions` (global services carved out; optional) | Yes |
