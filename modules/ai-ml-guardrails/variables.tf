@@ -55,6 +55,19 @@ variable "bedrock_iam_user_exempt_principal_arns" {
   }
 }
 
+variable "enable_deny_sagemaker_default_bucket_outside_org" {
+  type        = bool
+  description = <<-EOT
+    Deny reading and writing objects in buckets named like the SageMaker
+    SDK default bucket (sagemaker-<region>-<account-id>) when the bucket is
+    owned outside this organization, so a pre-created look-alike bucket
+    can't capture or swap training code. Off by default - first confirm in
+    CloudTrail (S3 data events) that no workload uses a default bucket that
+    belongs to an account outside the organization.
+  EOT
+  default     = false
+}
+
 variable "enable_lockdown_sagemaker_notebooks" {
   type        = bool
   description = "Deny SageMaker notebook instances with direct internet access, root access, or no VPC."

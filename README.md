@@ -210,7 +210,7 @@ separate reference deployment and is not shown.
 
 | Module | Type | What it does |
 |---|---|---|
-| [`ai-ml-guardrails`](modules/ai-ml-guardrails) | Preventive | SCPs protecting Bedrock logging and Guardrails, an optional model allow-list, an optional deny of Bedrock to IAM users (LLMjacking), and SageMaker notebook lockdown |
+| [`ai-ml-guardrails`](modules/ai-ml-guardrails) | Preventive | SCPs protecting Bedrock logging and Guardrails, an optional model allow-list, an optional deny of Bedrock to IAM users (LLMjacking), an optional deny of SageMaker default buckets owned outside the org (bucket sniping), and SageMaker notebook lockdown |
 | [`bedrock-logging-enforcement`](modules/bedrock-logging-enforcement) | Auto-remediation | Re-enables Bedrock invocation logging if it's disabled |
 | [`ai-agent-iam-auditor`](modules/ai-agent-iam-auditor) | Detective | Flags over-permissioned IAM roles trusted by AI services (including Bedrock AgentCore) or behind Bedrock Agent action groups |
 | [`bedrock-cost-guardrails`](modules/bedrock-cost-guardrails) | Detective | Budget ceiling and anomaly detection on Bedrock spend |

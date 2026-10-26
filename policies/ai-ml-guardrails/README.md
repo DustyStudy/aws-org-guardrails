@@ -13,6 +13,7 @@ instances. Use the standalone JSON, or deploy and attach it via
 | `deny-disable-bedrock-logging-and-guardrails.json` | Disabling Bedrock model invocation logging, or deleting a Bedrock Guardrail |
 | `restrict-bedrock-foundation-models.json` | Invoking any Bedrock foundation model not on your allow-list |
 | `deny-bedrock-long-term-credentials.json` | Bedrock model discovery, model access and invocation by IAM users (access keys, console passwords, Bedrock API keys) |
+| `deny-sagemaker-default-bucket-outside-org.json` | Reading or writing objects in a bucket named like the SageMaker SDK default bucket (`sagemaker-<region>-<account-id>`) that is owned outside your organization |
 | `lockdown-sagemaker-notebooks.json` | SageMaker notebooks with direct internet access, root access enabled, or no VPC |
 | `require-sagemaker-encryption.json` | SageMaker notebooks and training jobs that don't specify a KMS key |
 
@@ -55,6 +56,22 @@ instances. Use the standalone JSON, or deploy and attach it via
   first, and carve out any legacy integration with
   `bedrock_iam_user_exempt_principal_arns` while it moves to a role.
   NIST 800-53 Rev5: AC-2, AC-6, IA-2, IA-5.
+- **No SageMaker default bucket outside the org** closes bucket sniping
+  of the SageMaker Python SDK. `default_bucket()` names the bucket
+  `sagemaker-<region>-<account-id>` and, before 2.257.3 (V2) and 3.10.0
+  (V3), never checked who owns it. Someone who creates that name first in
+  their own account receives your uploaded training code, can replace it,
+  and your job then runs their code with its execution role
+  ([AWS bulletin 2026-142-AWS, CVE-2026-112408, 2026-10-21](https://aws.amazon.com/security/security-bulletins/2026-142-aws/)).
+  Upgrading the SDK is the fix; this SCP stops unpatched notebooks,
+  forks and pipelines from talking to a look-alike bucket. It keys on
+  `aws:ResourceOrgID`, so your own default buckets keep working, and the
+  resource pattern (`sagemaker-*-?-????????????`: a Region ending in
+  `-<digit>`, then a 12-digit account ID) leaves AWS-owned sample buckets
+  such as `sagemaker-sample-files` alone. **Off by default**: before
+  turning it on, check S3 data events for default-bucket names owned by an
+  account outside the organization, for example a partner's shared bucket.
+  NIST 800-53 Rev5: AC-3, AC-4, SC-7, SR-11.
 - **SageMaker notebook lockdown** closes the single most common SageMaker
   misconfiguration: a notebook instance with `DirectInternetAccess`
   enabled sitting outside a VPC, reachable from the internet, often with
