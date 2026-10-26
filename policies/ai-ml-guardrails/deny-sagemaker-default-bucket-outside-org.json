@@ -1,0 +1,24 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenySageMakerDefaultBucketOutsideOrg",
+      "Effect": "Deny",
+      "Action": [
+        "s3:GetObject*",
+        "s3:PutObject*",
+        "s3:ListBucket",
+        "s3:GetBucketLocation"
+      ],
+      "Resource": [
+        "arn:*:s3:::sagemaker-*-?-????????????",
+        "arn:*:s3:::sagemaker-*-?-????????????/*"
+      ],
+      "Condition": {
+        "StringNotEquals": {
+          "aws:ResourceOrgID": "${aws:PrincipalOrgID}"
+        }
+      }
+    }
+  ]
+}

@@ -179,6 +179,34 @@ run "bedrock_exemption_must_be_an_iam_user" {
   expect_failures = [var.bedrock_iam_user_exempt_principal_arns]
 }
 
+run "sagemaker_default_bucket_denied_outside_org" {
+  command = plan
+
+  variables {
+    enable_deny_sagemaker_default_bucket_outside_org = true
+  }
+
+  assert {
+    condition = jsondecode(aws_organizations_policy.this["deny-sagemaker-default-bucket-outside-org"].content).Statement[0].Condition == {
+      StringNotEquals = { "aws:ResourceOrgID" = "$${aws:PrincipalOrgID}" }
+    }
+    error_message = "The deny must apply only to buckets whose owner is outside the caller's organization."
+  }
+
+  assert {
+    condition = toset(jsondecode(aws_organizations_policy.this["deny-sagemaker-default-bucket-outside-org"].content).Statement[0].Resource) == toset([
+      "arn:*:s3:::sagemaker-*-?-????????????",
+      "arn:*:s3:::sagemaker-*-?-????????????/*",
+    ])
+    error_message = "Only the sagemaker-<region>-<account-id> name shape and its objects may be in scope."
+  }
+
+  assert {
+    condition     = length(aws_organizations_policy_attachment.this) == 8
+    error_message = "4 enabled policies x 2 targets must give 8 attachments."
+  }
+}
+
 run "disabled_policies_are_not_created" {
   command = plan
 
@@ -200,8 +228,9 @@ run "standalone_json_matches_module" {
   command = plan
 
   variables {
-    enable_restrict_bedrock_foundation_models = true
-    enable_deny_bedrock_long_term_credentials = true
+    enable_restrict_bedrock_foundation_models        = true
+    enable_deny_bedrock_long_term_credentials        = true
+    enable_deny_sagemaker_default_bucket_outside_org = true
     allowed_bedrock_model_patterns = [
       "REPLACE_WITH_ALLOWED_MODEL_PATTERN_1",
       "REPLACE_WITH_ALLOWED_MODEL_PATTERN_2",

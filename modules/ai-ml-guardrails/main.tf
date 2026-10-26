@@ -129,6 +129,36 @@ locals {
     ]
   })
 
+  # SageMaker Python SDK default_bucket() builds a predictable name,
+  # sagemaker-<region>-<account-id>, and before 2.257.3 / 3.10.0 never checked
+  # who owns it. Someone who creates that bucket first in their own account
+  # receives uploaded training code and can swap it, so the job runs their
+  # code with the execution role (AWS bulletin 2026-142-AWS, CVE-2026-112408).
+  # The ARN pattern matches only that shape (a Region ending in -<digit>,
+  # then a 12-digit account ID), so AWS-owned sample buckets such as
+  # sagemaker-sample-files are left alone. A bucket owned outside the
+  # organization has a different or no aws:ResourceOrgID, so it is denied.
+  deny_sagemaker_default_bucket_outside_org_content = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid    = "DenySageMakerDefaultBucketOutsideOrg"
+      Effect = "Deny"
+      Action = [
+        "s3:GetObject*",
+        "s3:PutObject*",
+        "s3:ListBucket",
+        "s3:GetBucketLocation",
+      ]
+      Resource = [
+        "arn:*:s3:::sagemaker-*-?-????????????",
+        "arn:*:s3:::sagemaker-*-?-????????????/*",
+      ]
+      Condition = {
+        StringNotEquals = { "aws:ResourceOrgID" = "$${aws:PrincipalOrgID}" }
+      }
+    }]
+  })
+
   policies = {
     deny-disable-bedrock-logging-and-guardrails = {
       enabled     = var.enable_deny_disable_bedrock_logging_and_guardrails
@@ -144,6 +174,11 @@ locals {
       enabled     = var.enable_deny_bedrock_long_term_credentials
       description = "Denies Bedrock model discovery, access and invocation to IAM users (long-term keys and Bedrock API keys)."
       content     = local.deny_bedrock_long_term_credentials_content
+    }
+    deny-sagemaker-default-bucket-outside-org = {
+      enabled     = var.enable_deny_sagemaker_default_bucket_outside_org
+      description = "Denies S3 access to SageMaker default-bucket names (sagemaker-<region>-<account>) owned outside the organization."
+      content     = local.deny_sagemaker_default_bucket_outside_org_content
     }
     lockdown-sagemaker-notebooks = {
       enabled     = var.enable_lockdown_sagemaker_notebooks

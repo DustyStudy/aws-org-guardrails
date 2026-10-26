@@ -8,6 +8,17 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `ai-ml-guardrails`: optional `deny-sagemaker-default-bucket-outside-org`
+  SCP (`enable_deny_sagemaker_default_bucket_outside_org`, off by default)
+  denies object reads and writes, `ListBucket` and `GetBucketLocation` on
+  buckets named `sagemaker-<region>-<account-id>` whose
+  `aws:ResourceOrgID` is not the caller's organization. A look-alike
+  default bucket created first in another account can then neither
+  receive nor serve training code. AWS-owned sample buckets do not match
+  the name pattern. Threat:
+  [AWS bulletin 2026-142-AWS, CVE-2026-112408 (2026-10-21)](https://aws.amazon.com/security/security-bulletins/2026-142-aws/).
+  NIST SP 800-53 Rev5: AC-3, AC-4, SC-7, SR-11.
+
 - `data-and-compute` bundle: optional `RequireImdsHopLimitOne` statement
   (`require_imds_hop_limit_one`, off by default) denies `ec2:RunInstances`
   unless `ec2:MetadataHttpPutResponseHopLimit` is 1, outside the exempt
