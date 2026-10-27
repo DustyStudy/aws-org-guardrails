@@ -1,6 +1,6 @@
-boto3==1.43.114 \
-    --hash=sha256:be704857751564a5cf69c5bbaadbfa01c22806409815c73563db42fbffe583a2 \
-    --hash=sha256:d9cac2eb921ce674970cef1c9ad750f85ee3a846aedcf188d18368fb9eb6da23
+boto3==1.43.116 \
+    --hash=sha256:89fa15e7d1788fb17cbd694b034beba57f43f30f58f4506913a5b62220f8ba01 \
+    --hash=sha256:9dca4dbd464b189041b27b5a02280bd5e02c3051bebf6bd03cd0e47aaf558030
     # via -r requirements-dev.in
 botocore==1.43.116 \
     --hash=sha256:00b1fbfc1c024b56633538385628a1bbc7ab15aca0b5b53e5fe188841d96c8ce \
