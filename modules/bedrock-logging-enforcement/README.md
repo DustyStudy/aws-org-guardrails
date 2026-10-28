@@ -62,4 +62,7 @@ GovCloud region first.
 - Pair this with [`ai-ml-guardrails`](../ai-ml-guardrails/)'s
   `deny-disable-bedrock-logging-and-guardrails` SCP: the SCP prevents the
   config from being deleted outright, this catches drift and restores it
-  if it happens anyway.
+  if it happens anyway. Set that module's `bedrock_logging_admin_role_arns`
+  to include this Lambda's role
+  (`<name_prefix>-bedrock-logging-role`) and the SCP also blocks everyone
+  else from reconfiguring logging, without blocking the restore.

@@ -12,6 +12,20 @@
       "Effect": "Deny",
       "Action": "bedrock:DeleteGuardrail",
       "Resource": "*"
+    },
+    {
+      "Sid": "DenyReconfigureBedrockInvocationLogging",
+      "Effect": "Deny",
+      "Action": "bedrock:PutModelInvocationLoggingConfiguration",
+      "Resource": "*",
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalArn": [
+            "arn:*:iam::*:role/bedrock-logging-enforcement-bedrock-logging-role",
+            "arn:*:iam::*:role/REPLACE_WITH_ROLE_THAT_SETS_UP_LOGGING"
+          ]
+        }
+      }
     }
   ]
 }

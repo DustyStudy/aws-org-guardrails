@@ -8,6 +8,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `ai-ml-guardrails`: optional `DenyReconfigureBedrockInvocationLogging`
+  statement in the `deny-disable-bedrock-logging-and-guardrails` SCP
+  (`bedrock_logging_admin_role_arns`, empty by default, which adds no
+  deny) denies `bedrock:PutModelInvocationLoggingConfiguration` to every
+  principal outside the listed roles. The SCP already denied deleting
+  invocation logging, but a Put could redirect it to another bucket or
+  drop text delivery with the same effect. List the
+  `bedrock-logging-enforcement` Lambda role so it can still restore
+  logging. NIST SP 800-53 Rev5: AU-9, AU-12.
+
 - `ai-ml-guardrails`: optional `deny-sagemaker-default-bucket-outside-org`
   SCP (`enable_deny_sagemaker_default_bucket_outside_org`, off by default)
   denies object reads and writes, `ListBucket` and `GetBucketLocation` on

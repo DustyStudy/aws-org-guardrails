@@ -30,6 +30,18 @@ turning it on, check CloudTrail for Bedrock calls whose
 `userIdentity.type` is `IAMUser`; any such caller is denied once it's on,
 unless listed in `bedrock_iam_user_exempt_principal_arns`.
 
+`bedrock_logging_admin_role_arns` is empty by default, which leaves
+Bedrock invocation logging reconfigurable by anyone with IAM permission.
+List the roles that may call `PutModelInvocationLoggingConfiguration`,
+including the `bedrock-logging-enforcement` Lambda role, and everyone else
+is denied:
+
+```hcl
+  bedrock_logging_admin_role_arns = [
+    "arn:*:iam::*:role/bedrock-logging-enforcement-bedrock-logging-role",
+  ]
+```
+
 `enable_deny_sagemaker_default_bucket_outside_org` is off by default.
 Before turning it on, check S3 data events for buckets named
 `sagemaker-<region>-<account-id>` that belong to an account outside the
