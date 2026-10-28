@@ -63,6 +63,49 @@ run "logging_and_guardrail_deletion_are_denied" {
   }
 }
 
+run "logging_reconfigure_deny_is_opt_in" {
+  command = plan
+
+  assert {
+    condition = !contains([
+      for s in jsondecode(aws_organizations_policy.this["deny-disable-bedrock-logging-and-guardrails"].content).Statement : s.Sid
+    ], "DenyReconfigureBedrockInvocationLogging")
+    error_message = "With no admin roles listed, Put must not be denied, or the enforcement Lambda can't restore logging."
+  }
+}
+
+run "logging_reconfigure_denied_outside_admin_roles" {
+  command = plan
+
+  variables {
+    bedrock_logging_admin_role_arns = ["arn:*:iam::*:role/bedrock-logging-enforcement-bedrock-logging-role"]
+  }
+
+  assert {
+    condition = one([
+      for s in jsondecode(aws_organizations_policy.this["deny-disable-bedrock-logging-and-guardrails"].content).Statement :
+      s if s.Sid == "DenyReconfigureBedrockInvocationLogging"
+      ]) == {
+      Sid       = "DenyReconfigureBedrockInvocationLogging"
+      Effect    = "Deny"
+      Action    = "bedrock:PutModelInvocationLoggingConfiguration"
+      Resource  = "*"
+      Condition = { ArnNotLike = { "aws:PrincipalArn" = ["arn:*:iam::*:role/bedrock-logging-enforcement-bedrock-logging-role"] } }
+    }
+    error_message = "Put must be denied to every principal except the listed admin roles."
+  }
+}
+
+run "logging_admin_must_be_a_role" {
+  command = plan
+
+  variables {
+    bedrock_logging_admin_role_arns = ["arn:aws:iam::*:user/someone"]
+  }
+
+  expect_failures = [var.bedrock_logging_admin_role_arns]
+}
+
 run "notebooks_need_vpc_no_internet_no_root" {
   command = plan
 
@@ -234,6 +277,10 @@ run "standalone_json_matches_module" {
     allowed_bedrock_model_patterns = [
       "REPLACE_WITH_ALLOWED_MODEL_PATTERN_1",
       "REPLACE_WITH_ALLOWED_MODEL_PATTERN_2",
+    ]
+    bedrock_logging_admin_role_arns = [
+      "arn:*:iam::*:role/bedrock-logging-enforcement-bedrock-logging-role",
+      "arn:*:iam::*:role/REPLACE_WITH_ROLE_THAT_SETS_UP_LOGGING",
     ]
   }
 

@@ -15,6 +15,25 @@ variable "enable_deny_disable_bedrock_logging_and_guardrails" {
   default     = true
 }
 
+variable "bedrock_logging_admin_role_arns" {
+  type        = list(string)
+  description = <<-EOT
+    Role ARN patterns allowed to call bedrock:PutModelInvocationLoggingConfiguration.
+    When set, the logging SCP denies that call to everyone else, so logging
+    can't be redirected or switched to fewer delivery types. Include the
+    bedrock-logging-enforcement Lambda role
+    (arn:*:iam::*:role/bedrock-logging-enforcement-bedrock-logging-role with
+    the default name_prefix) and whatever sets logging up. Empty (default)
+    adds no deny. Wildcards allowed.
+  EOT
+  default     = []
+
+  validation {
+    condition     = alltrue([for arn in var.bedrock_logging_admin_role_arns : can(regex("^arn:[^:]+:iam::[^:]+:role/", arn))])
+    error_message = "Each entry must be an IAM role ARN pattern (arn:<partition>:iam::<account>:role/<name>)."
+  }
+}
+
 variable "enable_restrict_bedrock_foundation_models" {
   type        = bool
   description = <<-EOT

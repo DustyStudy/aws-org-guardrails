@@ -1,20 +1,32 @@
 locals {
   deny_disable_bedrock_logging_and_guardrails_content = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Sid      = "DenyDisableBedrockInvocationLogging"
-        Effect   = "Deny"
-        Action   = "bedrock:DeleteModelInvocationLoggingConfiguration"
-        Resource = "*"
-      },
-      {
-        Sid      = "DenyDeleteBedrockGuardrails"
-        Effect   = "Deny"
-        Action   = "bedrock:DeleteGuardrail"
-        Resource = "*"
-      },
-    ]
+    Statement = concat(
+      [
+        {
+          Sid      = "DenyDisableBedrockInvocationLogging"
+          Effect   = "Deny"
+          Action   = "bedrock:DeleteModelInvocationLoggingConfiguration"
+          Resource = "*"
+        },
+        {
+          Sid      = "DenyDeleteBedrockGuardrails"
+          Effect   = "Deny"
+          Action   = "bedrock:DeleteGuardrail"
+          Resource = "*"
+        },
+      ],
+      # Put can turn logging off as surely as Delete: point it at another
+      # bucket or drop text delivery. Only the listed roles (the enforcement
+      # Lambda, the pipeline that sets logging up) may still call it.
+      length(var.bedrock_logging_admin_role_arns) == 0 ? [] : [{
+        Sid       = "DenyReconfigureBedrockInvocationLogging"
+        Effect    = "Deny"
+        Action    = "bedrock:PutModelInvocationLoggingConfiguration"
+        Resource  = "*"
+        Condition = { ArnNotLike = { "aws:PrincipalArn" = var.bedrock_logging_admin_role_arns } }
+      }]
+    )
   })
 
   restrict_bedrock_foundation_models_content = jsonencode({

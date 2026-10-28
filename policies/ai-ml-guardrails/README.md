@@ -10,7 +10,7 @@ instances. Use the standalone JSON, or deploy and attach it via
 
 | File | What it denies |
 |---|---|
-| `deny-disable-bedrock-logging-and-guardrails.json` | Disabling Bedrock model invocation logging, or deleting a Bedrock Guardrail |
+| `deny-disable-bedrock-logging-and-guardrails.json` | Deleting or (outside the roles you list) reconfiguring Bedrock model invocation logging, or deleting a Bedrock Guardrail |
 | `restrict-bedrock-foundation-models.json` | Invoking any Bedrock foundation model not on your allow-list |
 | `deny-bedrock-long-term-credentials.json` | Bedrock model discovery, model access and invocation by IAM users (access keys, console passwords, Bedrock API keys) |
 | `deny-sagemaker-default-bucket-outside-org.json` | Reading or writing objects in a bucket named like the SageMaker SDK default bucket (`sagemaker-<region>-<account-id>`) that is owned outside your organization |
@@ -23,12 +23,18 @@ instances. Use the standalone JSON, or deploy and attach it via
   and completions actually went through your models — without it, an
   incident involving a leaked prompt or a jailbroken agent is nearly
   unreconstructable after the fact. This SCP denies deleting the logging
-  configuration; it can't stop someone *reconfiguring* it (e.g. pointing it
-  at another bucket or disabling text delivery), since that is the same
+  configuration. Reconfiguring it (pointing it at another bucket, or
+  dropping text delivery) is the same
   `PutModelInvocationLoggingConfiguration` call the enforcement Lambda
-  itself needs. Pair it with
+  needs, so that deny names the roles still allowed to make it: list them
+  in `bedrock_logging_admin_role_arns` (Terraform), or replace the
+  placeholder in the JSON. Include the
   [`bedrock-logging-enforcement`](../../modules/bedrock-logging-enforcement/)
-  to detect and revert that.
+  Lambda role and whatever first sets logging up. **The Terraform deny is
+  off until you list them**; with the raw JSON, delete the statement if
+  you don't want it. Check CloudTrail for
+  `PutModelInvocationLoggingConfiguration` callers first. NIST 800-53
+  Rev5: AU-9, AU-12.
 - **Bedrock Guardrails** (content filtering, PII redaction, topic
   restrictions) are easy to configure and easy to quietly delete later.
   This denies the delete.
