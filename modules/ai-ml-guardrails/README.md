@@ -47,6 +47,13 @@ Before turning it on, check S3 data events for buckets named
 `sagemaker-<region>-<account-id>` that belong to an account outside the
 organization; access to them is denied once it's on.
 
+`enable_deny_bedrock_global_cross_region_inference` is off by default.
+Before turning it on, search CloudTrail for Bedrock calls whose model ID
+starts with `global.`; those workloads are denied once it's on. With the
+core `region-restriction` bundle attached, global profiles are already
+denied, because Bedrock checks them with `aws:RequestedRegion` set to
+`unspecified`.
+
 `enable_restrict_bedrock_foundation_models` is off by default — turn it
 on only after populating `allowed_bedrock_model_patterns`, or you'll
 block all Bedrock usage in the account.

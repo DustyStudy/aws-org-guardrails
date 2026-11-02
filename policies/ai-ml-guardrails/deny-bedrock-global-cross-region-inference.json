@@ -1,0 +1,19 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyBedrockGlobalCrossRegionInference",
+      "Effect": "Deny",
+      "Action": "bedrock:*",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "unspecified"
+        },
+        "ArnLike": {
+          "bedrock:InferenceProfileArn": "arn:*:bedrock:*:*:inference-profile/global.*"
+        }
+      }
+    }
+  ]
+}

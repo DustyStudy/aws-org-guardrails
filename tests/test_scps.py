@@ -20,7 +20,7 @@ SCP_MAX_CHARS = 5120
 SCP_MAX_PER_TARGET = 5
 
 # Statements that apply to everyone, exempt principals included.
-NO_EXEMPTION = {"DenyLeaveOrganization", "DenyRootUser", "RequireImdsV2OnLaunch"}
+NO_EXEMPTION = {"DenyLeaveOrganization", "DenyRootUser", "RequireImdsV2OnLaunch", "DenyAthenaResultsBucketOutsideOrg"}
 
 
 def req(action, principal=WORKLOAD, resource="*", region="us-east-1", **extra):
@@ -59,8 +59,8 @@ def test_sids_are_unique_across_bundles(commercial):
     assert len(sids) == len(set(sids))
 
 
-def test_exemption_is_on_every_statement_that_should_have_it(commercial):
-    for doc in commercial.scps.values():
+def test_exemption_is_on_every_statement_that_should_have_it(commercial, data_locked):
+    for doc in [*commercial.scps.values(), *data_locked.scps.values()]:
         for statement in doc["Statement"]:
             has_exemption = "aws:PrincipalArn" in statement.get("Condition", {}).get("ArnNotLike", {})
             assert has_exemption is (statement["Sid"] not in NO_EXEMPTION), statement["Sid"]
@@ -260,6 +260,45 @@ def test_hop_limit_rule_only_applies_to_the_instance_resource(hop_locked):
 
 def test_data_and_compute_bundle_with_hop_limit_fits_the_scp_size_limit(hop_locked):
     assert len(hop_locked.scps_raw["data-and-compute"]) <= SCP_MAX_CHARS
+
+
+def test_data_and_compute_bundle_with_every_option_fits_the_scp_size_limit(data_locked):
+    assert len(data_locked.scps_raw["data-and-compute"]) <= SCP_MAX_CHARS
+
+
+# --- Athena default result bucket (CVE-2026-118029) -------------------------
+
+ORG = "o-exampleorg1"
+ATHENA_BUCKET = f"arn:aws:s3:::aws-athena-query-results-{ACCOUNT}-us-east-1"
+
+
+def _athena(action, resource, principal=WORKLOAD, **extra):
+    return req(action, principal, resource, **{"aws:PrincipalOrgID": ORG, **extra})
+
+
+@pytest.mark.parametrize("action", ["s3:GetObject", "s3:PutObject", "s3:ListBucket", "s3:GetBucketLocation"])
+def test_athena_results_bucket_owned_outside_the_org_is_denied(data_locked, action):
+    resource = ATHENA_BUCKET if action in {"s3:ListBucket", "s3:GetBucketLocation"} else f"{ATHENA_BUCKET}/q/1.csv"
+    other_org = _athena(action, resource, **{"aws:ResourceOrgID": "o-attacker000"})
+    # A standalone account has no aws:ResourceOrgID at all.
+    standalone = _athena(action, resource)
+    assert decide(data_locked, other_org) is Decision.EXPLICIT_DENY
+    assert decide(data_locked, standalone) is Decision.EXPLICIT_DENY
+    assert decide(data_locked, _athena(action, resource, BREAKGLASS)) is Decision.EXPLICIT_DENY
+
+
+def test_athena_results_bucket_inside_the_org_is_allowed(data_locked):
+    own = _athena("s3:PutObject", f"{ATHENA_BUCKET}/q/1.csv", **{"aws:ResourceOrgID": ORG})
+    assert decide(data_locked, own) is Decision.ALLOW
+
+
+def test_athena_rule_only_matches_the_default_bucket_name(data_locked):
+    other = _athena("s3:GetObject", "arn:aws:s3:::aws-athena-query-results-shared/q/1.csv")
+    assert decide(data_locked, other) is Decision.ALLOW
+
+
+def test_athena_rule_is_off_by_default(commercial):
+    assert decide(commercial, _athena("s3:GetObject", f"{ATHENA_BUCKET}/q/1.csv")) is Decision.ALLOW
 
 
 @pytest.mark.parametrize(

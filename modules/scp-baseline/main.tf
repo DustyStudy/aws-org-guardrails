@@ -10,8 +10,9 @@ module "policies" {
   deny_iam_user_credentials    = var.deny_iam_user_credentials
   protected_role_name_prefixes = var.protected_role_name_prefixes
 
-  deny_service_specific_credentials = var.deny_service_specific_credentials
-  require_imds_hop_limit_one        = var.require_imds_hop_limit_one
+  deny_service_specific_credentials      = var.deny_service_specific_credentials
+  require_imds_hop_limit_one             = var.require_imds_hop_limit_one
+  deny_athena_results_bucket_outside_org = var.deny_athena_results_bucket_outside_org
 
   deny_ses_to_iam_users              = var.deny_ses_to_iam_users
   ses_iam_user_exempt_principal_arns = var.ses_iam_user_exempt_principal_arns

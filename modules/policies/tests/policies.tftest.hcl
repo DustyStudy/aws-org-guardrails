@@ -78,6 +78,42 @@ run "imds_hop_limit_statement_is_exempted" {
   }
 }
 
+run "athena_results_bucket_statement_is_off_by_default" {
+  command = plan
+
+  assert {
+    condition     = !strcontains(output.scp_policies["data-and-compute"], "DenyAthenaResultsBucketOutsideOrg")
+    error_message = "DenyAthenaResultsBucketOutsideOrg must be opt-in: check S3 data events for outside-org result buckets first."
+  }
+}
+
+run "athena_results_bucket_statement_keys_on_resource_org" {
+  command = plan
+
+  variables {
+    deny_athena_results_bucket_outside_org = true
+  }
+
+  assert {
+    condition = jsonencode(one([
+      for s in jsondecode(output.scp_policies["data-and-compute"]).Statement : s.Condition if s.Sid == "DenyAthenaResultsBucketOutsideOrg"
+      ])) == jsonencode({
+      StringNotEquals = { "aws:ResourceOrgID" = "$${aws:PrincipalOrgID}" }
+    })
+    error_message = "The Athena deny must apply only to buckets owned outside the caller's organization, with no role exemption."
+  }
+
+  assert {
+    condition = toset(one([
+      for s in jsondecode(output.scp_policies["data-and-compute"]).Statement : s.Resource if s.Sid == "DenyAthenaResultsBucketOutsideOrg"
+      ])) == toset([
+      "arn:${var.partition}:s3:::aws-athena-query-results-????????????-*",
+      "arn:${var.partition}:s3:::aws-athena-query-results-????????????-*/*",
+    ])
+    error_message = "Only the aws-athena-query-results-<account-id>-<region> name shape and its objects may be in scope."
+  }
+}
+
 run "ses_statement_is_off_by_default" {
   command = plan
 

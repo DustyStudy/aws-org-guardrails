@@ -74,6 +74,19 @@ variable "bedrock_iam_user_exempt_principal_arns" {
   }
 }
 
+variable "enable_deny_bedrock_global_cross_region_inference" {
+  type        = bool
+  description = <<-EOT
+    Deny Bedrock inference through global cross-Region inference profiles
+    (global.* model IDs), which route requests to any supported commercial
+    Region worldwide. Geographic profiles (us.*) and in-Region calls keep
+    working. Off by default - first search CloudTrail for Bedrock calls
+    whose model ID starts with "global."; those workloads are denied once
+    it's on.
+  EOT
+  default     = false
+}
+
 variable "enable_deny_sagemaker_default_bucket_outside_org" {
   type        = bool
   description = <<-EOT
