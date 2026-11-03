@@ -13,6 +13,7 @@ instances. Use the standalone JSON, or deploy and attach it via
 | `deny-disable-bedrock-logging-and-guardrails.json` | Deleting or (outside the roles you list) reconfiguring Bedrock model invocation logging, or deleting a Bedrock Guardrail |
 | `restrict-bedrock-foundation-models.json` | Invoking any Bedrock foundation model not on your allow-list |
 | `deny-bedrock-long-term-credentials.json` | Bedrock model discovery, model access and invocation by IAM users (access keys, console passwords, Bedrock API keys) |
+| `deny-bedrock-global-cross-region-inference.json` | Bedrock inference through a global cross-Region inference profile (`global.*`), which can route to any commercial Region |
 | `deny-sagemaker-default-bucket-outside-org.json` | Reading or writing objects in a bucket named like the SageMaker SDK default bucket (`sagemaker-<region>-<account-id>`) that is owned outside your organization |
 | `lockdown-sagemaker-notebooks.json` | SageMaker notebooks with direct internet access, root access enabled, or no VPC |
 | `require-sagemaker-encryption.json` | SageMaker notebooks and training jobs that don't specify a KMS key |
@@ -62,6 +63,22 @@ instances. Use the standalone JSON, or deploy and attach it via
   first, and carve out any legacy integration with
   `bedrock_iam_user_exempt_principal_arns` while it moves to a role.
   NIST 800-53 Rev5: AC-2, AC-6, IA-2, IA-5.
+- **No global cross-Region inference** keeps Bedrock traffic inside the
+  Regions you chose. A `global.*` inference profile routes each request to
+  any supported commercial Region worldwide, which breaks a US-only data
+  boundary, and it gives a stolen key the most quota: in [Wiz, 2026-10-30](https://www.wiz.io/blog/black-october-for-ai-developer-platforms), the key
+  allowed `global.*` kept about 90% of attacker calls working for hours,
+  while the `us.*`-only key was mostly throttled. Bedrock authorizes a
+  global call against a Region-agnostic foundation-model ARN with
+  `aws:RequestedRegion` set to `unspecified`, and this SCP (from the
+  [Bedrock user guide](https://docs.aws.amazon.com/bedrock/latest/userguide/global-cross-region-inference.html), with `arn:*` for every partition) denies that combination.
+  Geographic profiles such as `us.*` are not affected. The core
+  `region-restriction` bundle already denies global profiles as a side
+  effect, since `unspecified` is never an allowed Region; this policy keeps
+  the control explicit if that bundle is off or changes. **Off by
+  default**: search CloudTrail for Bedrock calls whose model ID starts with
+  `global.` first. GovCloud has no global profiles, so it changes nothing
+  there. NIST 800-53 Rev5: AC-4, SC-7, SA-9(5), CM-7.
 - **No SageMaker default bucket outside the org** closes bucket sniping
   of the SageMaker Python SDK. `default_bucket()` names the bucket
   `sagemaker-<region>-<account-id>` and, before 2.257.3 (V2) and 3.10.0

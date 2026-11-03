@@ -171,6 +171,32 @@ locals {
     }]
   })
 
+  # Global cross-Region inference profiles (global.*) send a request to any
+  # supported commercial Region worldwide, which breaks a US-only data
+  # boundary and gives a stolen key the largest quota: in Wiz's 2026-10-30
+  # report the key allowed global.* kept most attacker calls working, while
+  # a us.*-only key was mostly throttled. Bedrock authorizes a global call
+  # against the Region-agnostic foundation model with aws:RequestedRegion
+  # "unspecified", and bedrock:InferenceProfileArn names the global profile.
+  # This is the SCP from the Bedrock user guide ("Disable global cross-Region
+  # inference"), with arn:* so it renders the same in every partition.
+  # bedrock:* is deliberate: the condition only matches global-profile
+  # inference, and new invoke actions are covered without an update.
+  # Geographic profiles such as us.* are not affected.
+  deny_bedrock_global_cross_region_inference_content = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "DenyBedrockGlobalCrossRegionInference"
+      Effect   = "Deny"
+      Action   = "bedrock:*"
+      Resource = "*"
+      Condition = {
+        StringEquals = { "aws:RequestedRegion" = "unspecified" }
+        ArnLike      = { "bedrock:InferenceProfileArn" = "arn:*:bedrock:*:*:inference-profile/global.*" }
+      }
+    }]
+  })
+
   policies = {
     deny-disable-bedrock-logging-and-guardrails = {
       enabled     = var.enable_deny_disable_bedrock_logging_and_guardrails
@@ -186,6 +212,11 @@ locals {
       enabled     = var.enable_deny_bedrock_long_term_credentials
       description = "Denies Bedrock model discovery, access and invocation to IAM users (long-term keys and Bedrock API keys)."
       content     = local.deny_bedrock_long_term_credentials_content
+    }
+    deny-bedrock-global-cross-region-inference = {
+      enabled     = var.enable_deny_bedrock_global_cross_region_inference
+      description = "Denies Bedrock inference through global cross-Region inference profiles (global.*), which route to any commercial Region."
+      content     = local.deny_bedrock_global_cross_region_inference_content
     }
     deny-sagemaker-default-bucket-outside-org = {
       enabled     = var.enable_deny_sagemaker_default_bucket_outside_org

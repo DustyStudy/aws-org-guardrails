@@ -251,6 +251,29 @@ locals {
         NumericNotEquals = { "ec2:MetadataHttpPutResponseHopLimit" = "1" }
       })
     },
+    ] : [], var.deny_athena_results_bucket_outside_org ? [
+    {
+      # AWS SDK for pandas (awswrangler) before 3.16.1 used
+      # aws-athena-query-results-<account-id>-<region> as the default Athena
+      # result location without checking who owns it. Whoever creates that
+      # name first in their own account reads the query results and can
+      # change what the caller gets back (AWS bulletin 2026-153-AWS,
+      # CVE-2026-118029). Athena reads and writes results with the caller's
+      # credentials, so the deny applies. aws:ResourceOrgID is missing for a
+      # bucket in a standalone account, and StringNotEquals is true when the
+      # key is missing, so those are denied too. No exemption: no role has a
+      # reason to use a look-alike bucket in another organization.
+      Sid    = "DenyAthenaResultsBucketOutsideOrg"
+      Effect = "Deny"
+      Action = ["s3:GetObject*", "s3:PutObject*", "s3:ListBucket", "s3:GetBucketLocation"]
+      Resource = [
+        "arn:${local.p}:s3:::aws-athena-query-results-????????????-*",
+        "arn:${local.p}:s3:::aws-athena-query-results-????????????-*/*",
+      ]
+      Condition = {
+        StringNotEquals = { "aws:ResourceOrgID" = "$${aws:PrincipalOrgID}" }
+      }
+    },
   ] : [])
 
   # Global services and the handful of regional actions they depend on. They

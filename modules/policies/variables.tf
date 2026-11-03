@@ -119,6 +119,19 @@ variable "require_imds_hop_limit_one" {
   default     = false
 }
 
+variable "deny_athena_results_bucket_outside_org" {
+  description = <<-EOT
+    Deny reading and writing objects in buckets named like the Athena
+    default result bucket (aws-athena-query-results-<account-id>-<region>)
+    when the bucket is owned outside this organization, so a pre-created
+    look-alike bucket cannot capture or change query results. Off by
+    default: first confirm in S3 data events that no workload uses such a
+    bucket in an account outside the organization.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "deny_ses_to_iam_users" {
   description = <<-EOT
     Deny every Amazon SES action to IAM users, so a leaked access key cannot

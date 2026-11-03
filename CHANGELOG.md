@@ -8,6 +8,31 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `data-and-compute` bundle: optional `DenyAthenaResultsBucketOutsideOrg`
+  statement (`deny_athena_results_bucket_outside_org`, off by default)
+  denies object reads and writes, `ListBucket` and `GetBucketLocation` on
+  buckets named `aws-athena-query-results-<account-id>-<region>` whose
+  `aws:ResourceOrgID` is not the caller's organization. AWS SDK for pandas
+  (awswrangler) before 3.16.1 used that name as the default Athena result
+  location without checking the owner, so a look-alike bucket created
+  first in another account could read and change query results. Buckets
+  in standalone accounts have no `aws:ResourceOrgID` and are denied too.
+  It adds no SCP, so the per-target quota is unchanged. Threat:
+  [AWS bulletin 2026-153-AWS, CVE-2026-118029 (2026-10-28)](https://aws.amazon.com/security/security-bulletins/2026-153-aws/).
+  NIST SP 800-53 Rev5: AC-3, AC-4, SC-7, SI-7.
+
+- `ai-ml-guardrails`: optional `deny-bedrock-global-cross-region-inference`
+  SCP (`enable_deny_bedrock_global_cross_region_inference`, off by
+  default) denies Bedrock calls made through global cross-Region inference
+  profiles (`global.*`), which route to any commercial Region worldwide.
+  It is the SCP from the [Bedrock user guide](https://docs.aws.amazon.com/bedrock/latest/userguide/global-cross-region-inference.html), made partition-agnostic. Geographic
+  profiles (`us.*`) keep working. The core `region-restriction` bundle
+  already denies global profiles as a side effect; this keeps the data
+  boundary explicit for adopters without it. Threat: stolen keys allowed
+  `global.*` kept most attacker calls working while a `us.*`-only key was
+  throttled ([Wiz, 2026-10-30](https://www.wiz.io/blog/black-october-for-ai-developer-platforms)).
+  NIST SP 800-53 Rev5: AC-4, SC-7, SA-9(5), CM-7.
+
 - `ai-ml-guardrails`: optional `DenyReconfigureBedrockInvocationLogging`
   statement in the `deny-disable-bedrock-logging-and-guardrails` SCP
   (`bedrock_logging_admin_role_arns`, empty by default, which adds no

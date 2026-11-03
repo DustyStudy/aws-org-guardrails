@@ -250,6 +250,36 @@ run "sagemaker_default_bucket_denied_outside_org" {
   }
 }
 
+run "bedrock_global_inference_denied_only_for_global_profiles" {
+  command = plan
+
+  variables {
+    enable_deny_bedrock_global_cross_region_inference = true
+  }
+
+  assert {
+    condition = jsondecode(aws_organizations_policy.this["deny-bedrock-global-cross-region-inference"].content).Statement[0].Condition == {
+      StringEquals = { "aws:RequestedRegion" = "unspecified" }
+      ArnLike      = { "bedrock:InferenceProfileArn" = "arn:*:bedrock:*:*:inference-profile/global.*" }
+    }
+    error_message = "The deny must match only Region-agnostic calls made through a global.* inference profile."
+  }
+
+  assert {
+    condition     = length(aws_organizations_policy_attachment.this) == 8
+    error_message = "4 enabled policies x 2 targets must give 8 attachments."
+  }
+}
+
+run "bedrock_global_inference_deny_is_opt_in" {
+  command = plan
+
+  assert {
+    condition     = !contains(keys(aws_organizations_policy.this), "deny-bedrock-global-cross-region-inference")
+    error_message = "The global cross-Region inference deny must be off by default: it breaks workloads already using global.* model IDs."
+  }
+}
+
 run "disabled_policies_are_not_created" {
   command = plan
 
@@ -271,9 +301,10 @@ run "standalone_json_matches_module" {
   command = plan
 
   variables {
-    enable_restrict_bedrock_foundation_models        = true
-    enable_deny_bedrock_long_term_credentials        = true
-    enable_deny_sagemaker_default_bucket_outside_org = true
+    enable_restrict_bedrock_foundation_models         = true
+    enable_deny_bedrock_long_term_credentials         = true
+    enable_deny_sagemaker_default_bucket_outside_org  = true
+    enable_deny_bedrock_global_cross_region_inference = true
     allowed_bedrock_model_patterns = [
       "REPLACE_WITH_ALLOWED_MODEL_PATTERN_1",
       "REPLACE_WITH_ALLOWED_MODEL_PATTERN_2",
