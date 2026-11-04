@@ -98,6 +98,12 @@ variable "deny_athena_results_bucket_outside_org" {
   default     = false
 }
 
+variable "deny_tagged_kms_keys_off_org_network" {
+  description = "Deny using KMS keys tagged guardrails:network-perimeter=true except through organization VPC endpoints. Off by default; check CloudTrail for calls on those keys without a vpcEndpointId first."
+  type        = bool
+  default     = false
+}
+
 variable "deny_ses_to_iam_users" {
   description = "Deny every Amazon SES action to IAM users. Off by default; SES SMTP senders are IAM users and must be listed in ses_iam_user_exempt_principal_arns first."
   type        = bool

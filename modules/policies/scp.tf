@@ -274,6 +274,46 @@ locals {
         StringNotEquals = { "aws:ResourceOrgID" = "$${aws:PrincipalOrgID}" }
       }
     },
+    ] : [], var.deny_tagged_kms_keys_off_org_network ? [
+    {
+      # The 2026 Binance theft began on one engineer's laptop (a fake job
+      # interview's "assignment") and reached hot-wallet signing over months.
+      # Credentials lifted from a laptop work from anywhere unless the key
+      # also checks the network. This denies using or re-pointing a KMS key
+      # tagged guardrails:network-perimeter=true unless the call arrives
+      # through a VPC endpoint owned by an account in the caller's
+      # organization. aws:VpceOrgID is absent on public endpoints, so
+      # ...IfExists denies those. CreateGrant and PutKeyPolicy are in scope
+      # because a grant or key-policy entry for an outside account is not
+      # bound by this SCP. ReplicateKey is in scope because a replica does
+      # not inherit the primary's tags. Tag and untag are in scope so the tag cannot be
+      # removed from off the network first. Calls AWS services make for the
+      # caller (S3 SSE-KMS, EBS) drop the VPC endpoint context, so
+      # aws:ViaAWSService and aws:PrincipalIsAWSService skip them; data read
+      # through such a service (an SSE-KMS object) needs that service's own
+      # perimeter.
+      Sid    = "DenyTaggedKmsKeysOffOrgNetwork"
+      Effect = "Deny"
+      Action = [
+        "kms:CreateGrant",
+        "kms:Decrypt",
+        "kms:DeriveSharedSecret",
+        "kms:GenerateDataKey*",
+        "kms:GenerateMac",
+        "kms:PutKeyPolicy",
+        "kms:ReEncrypt*",
+        "kms:ReplicateKey",
+        "kms:Sign",
+        "kms:TagResource",
+        "kms:UntagResource",
+      ]
+      Resource = "arn:${local.p}:kms:*:*:key/*"
+      Condition = merge(local.exempt, {
+        StringEquals            = { "aws:ResourceTag/guardrails:network-perimeter" = "true" }
+        StringNotEqualsIfExists = { "aws:VpceOrgID" = "$${aws:PrincipalOrgID}" }
+        BoolIfExists            = { "aws:ViaAWSService" = "false", "aws:PrincipalIsAWSService" = "false" }
+      })
+    },
   ] : [])
 
   # Global services and the handful of regional actions they depend on. They

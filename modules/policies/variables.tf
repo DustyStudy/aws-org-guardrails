@@ -132,6 +132,20 @@ variable "deny_athena_results_bucket_outside_org" {
   default     = false
 }
 
+variable "deny_tagged_kms_keys_off_org_network" {
+  description = <<-EOT
+    Deny signing, decrypting, granting, re-tagging and key-policy changes on
+    KMS keys tagged guardrails:network-perimeter=true unless the call comes
+    through a VPC endpoint owned by an account in the caller's organization,
+    so credentials stolen from a laptop cannot use those keys from outside.
+    Off by default: tag only keys whose callers all run behind organization
+    VPC endpoints, after checking CloudTrail for calls on them without a
+    vpcEndpointId.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "deny_ses_to_iam_users" {
   description = <<-EOT
     Deny every Amazon SES action to IAM users, so a leaked access key cannot

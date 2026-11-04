@@ -8,6 +8,27 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `data-and-compute` bundle: optional `DenyTaggedKmsKeysOffOrgNetwork`
+  statement (`deny_tagged_kms_keys_off_org_network`, off by default)
+  denies `Sign`, `Decrypt`, `GenerateDataKey*`, `ReEncrypt*`,
+  `GenerateMac`, `DeriveSharedSecret`, `CreateGrant`, `PutKeyPolicy`,
+  `ReplicateKey`,
+  `TagResource` and `UntagResource` on KMS keys tagged
+  `guardrails:network-perimeter=true` unless the call arrives through a
+  VPC endpoint owned by an account in the caller's organization
+  (`aws:VpceOrgID`). Credentials stolen from a developer laptop then
+  cannot sign or decrypt with those keys from the attacker's own network.
+  Grants and key-policy changes are covered because an outside account
+  added that way is not bound by the SCP; tag changes are covered so the
+  tag cannot be stripped first. Calls AWS services make for the caller
+  (`aws:ViaAWSService`, `aws:PrincipalIsAWSService`) are skipped, and
+  exempt roles keep access. Data read through such a service (an SSE-KMS
+  S3 object) is not covered and needs that service's own perimeter, and
+  replicas created before the deny must be tagged too. It adds no SCP. Threat: the 2026 Binance
+  hot-wallet theft, which began with malware on one engineer's work
+  laptop ([CoinDesk, 2026-11-03](https://www.coindesk.com/business/2026/11/03/binance-s-usd6-3-billion-hack-began-with-a-fake-job-interview-exchange-says)).
+  NIST SP 800-53 Rev5: AC-3, AC-4, SC-7, IA-2.
+
 - `data-and-compute` bundle: optional `DenyAthenaResultsBucketOutsideOrg`
   statement (`deny_athena_results_bucket_outside_org`, off by default)
   denies object reads and writes, `ListBucket` and `GetBucketLocation` on
