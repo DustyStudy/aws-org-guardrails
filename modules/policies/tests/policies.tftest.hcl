@@ -114,6 +114,42 @@ run "athena_results_bucket_statement_keys_on_resource_org" {
   }
 }
 
+run "kms_network_perimeter_statement_is_off_by_default" {
+  command = plan
+
+  assert {
+    condition     = !strcontains(output.scp_policies["data-and-compute"], "DenyTaggedKmsKeysOffOrgNetwork")
+    error_message = "DenyTaggedKmsKeysOffOrgNetwork must be opt-in: check CloudTrail for calls on tagged keys without a vpcEndpointId first."
+  }
+}
+
+run "kms_network_perimeter_statement_keys_on_tag_and_org_endpoint" {
+  command = plan
+
+  variables {
+    deny_tagged_kms_keys_off_org_network = true
+  }
+
+  assert {
+    condition = jsonencode(one([
+      for s in jsondecode(output.scp_policies["data-and-compute"]).Statement : s.Condition if s.Sid == "DenyTaggedKmsKeysOffOrgNetwork"
+      ])) == jsonencode({
+      ArnNotLike              = { "aws:PrincipalArn" = var.exempt_principal_arns }
+      BoolIfExists            = { "aws:PrincipalIsAWSService" = "false", "aws:ViaAWSService" = "false" }
+      StringEquals            = { "aws:ResourceTag/guardrails:network-perimeter" = "true" }
+      StringNotEqualsIfExists = { "aws:VpceOrgID" = "$${aws:PrincipalOrgID}" }
+    })
+    error_message = "The KMS deny must cover only tagged keys reached outside an organization VPC endpoint, skip AWS service calls, and carry the role exemption."
+  }
+
+  assert {
+    condition = one([
+      for s in jsondecode(output.scp_policies["data-and-compute"]).Statement : s.Resource if s.Sid == "DenyTaggedKmsKeysOffOrgNetwork"
+    ]) == "arn:${var.partition}:kms:*:*:key/*"
+    error_message = "Only KMS keys may be in scope, in the configured partition."
+  }
+}
+
 run "ses_statement_is_off_by_default" {
   command = plan
 

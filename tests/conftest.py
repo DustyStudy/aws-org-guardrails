@@ -38,7 +38,13 @@ def hop_locked() -> RenderedPolicies:
 @pytest.fixture(scope="session")
 def data_locked() -> RenderedPolicies:
     # Every optional data-and-compute statement on, so the size test sees the largest bundle.
-    return render(extra_vars={"require_imds_hop_limit_one": True, "deny_athena_results_bucket_outside_org": True})
+    return render(
+        extra_vars={
+            "require_imds_hop_limit_one": True,
+            "deny_athena_results_bucket_outside_org": True,
+            "deny_tagged_kms_keys_off_org_network": True,
+        }
+    )
 
 
 @pytest.fixture(scope="session")

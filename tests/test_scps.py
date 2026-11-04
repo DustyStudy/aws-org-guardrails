@@ -301,6 +301,65 @@ def test_athena_rule_is_off_by_default(commercial):
     assert decide(commercial, _athena("s3:GetObject", f"{ATHENA_BUCKET}/q/1.csv")) is Decision.ALLOW
 
 
+# --- KMS keys behind the organization network perimeter (Binance, 2026) -----
+
+PERIMETER_KEY = f"arn:aws:kms:us-east-1:{ACCOUNT}:key/1234abcd-12ab-34cd-56ef-1234567890ab"
+PERIMETER_TAG = {"aws:ResourceTag/guardrails:network-perimeter": "true"}
+KMS_PERIMETER_ACTIONS = [
+    "kms:Sign",
+    "kms:Decrypt",
+    "kms:GenerateDataKey",
+    "kms:GenerateDataKeyPair",
+    "kms:ReEncryptFrom",
+    "kms:ReplicateKey",
+    "kms:GenerateMac",
+    "kms:DeriveSharedSecret",
+    "kms:CreateGrant",
+    "kms:PutKeyPolicy",
+    "kms:TagResource",
+    "kms:UntagResource",
+]
+
+
+def _kms(action, principal=WORKLOAD, tagged=True, **extra):
+    tags = PERIMETER_TAG if tagged else {}
+    return req(action, principal, PERIMETER_KEY, **{"aws:PrincipalOrgID": ORG, **tags, **extra})
+
+
+@pytest.mark.parametrize("action", KMS_PERIMETER_ACTIONS)
+def test_stolen_credentials_cannot_use_a_perimeter_key_from_outside(data_locked, action):
+    # Public endpoint: no aws:VpceOrgID at all.
+    assert decide(data_locked, _kms(action)) is Decision.EXPLICIT_DENY
+    # The attacker's own VPC endpoint carries their organization's ID.
+    assert decide(data_locked, _kms(action, **{"aws:VpceOrgID": "o-attacker000"})) is Decision.EXPLICIT_DENY
+
+
+@pytest.mark.parametrize("action", KMS_PERIMETER_ACTIONS)
+def test_perimeter_key_works_through_an_org_vpc_endpoint(data_locked, action):
+    assert decide(data_locked, _kms(action, **{"aws:VpceOrgID": ORG})) is Decision.ALLOW
+
+
+def test_aws_services_acting_for_the_caller_are_not_blocked(data_locked):
+    # S3 SSE-KMS and EBS call KMS with the caller's identity but without the
+    # caller's VPC endpoint context.
+    assert decide(data_locked, _kms("kms:Decrypt", **{"aws:ViaAWSService": "true"})) is Decision.ALLOW
+    assert decide(data_locked, _kms("kms:Decrypt", **{"aws:PrincipalIsAWSService": "true"})) is Decision.ALLOW
+
+
+def test_untagged_keys_and_other_kms_reads_are_untouched(data_locked):
+    assert decide(data_locked, _kms("kms:Sign", tagged=False)) is Decision.ALLOW
+    assert decide(data_locked, _kms("kms:GetPublicKey")) is Decision.ALLOW
+    assert decide(data_locked, _kms("kms:DescribeKey")) is Decision.ALLOW
+
+
+def test_break_glass_can_reach_a_perimeter_key_from_outside(data_locked):
+    assert decide(data_locked, _kms("kms:PutKeyPolicy", BREAKGLASS)) is Decision.ALLOW
+
+
+def test_kms_perimeter_rule_is_off_by_default(commercial):
+    assert decide(commercial, _kms("kms:Sign")) is Decision.ALLOW
+
+
 @pytest.mark.parametrize(
     "action",
     ["ec2:DisableEbsEncryptionByDefault", "s3:PutAccountPublicAccessBlock", "ec2:ModifyInstanceMetadataOptions"],

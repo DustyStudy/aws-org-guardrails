@@ -31,6 +31,11 @@ variable "deny_athena_results_bucket_outside_org" {
   default = false
 }
 
+variable "deny_tagged_kms_keys_off_org_network" {
+  type    = bool
+  default = false
+}
+
 variable "deny_ses_to_iam_users" {
   type    = bool
   default = false
@@ -54,6 +59,7 @@ module "policies" {
   deny_service_specific_credentials      = var.deny_service_specific_credentials
   require_imds_hop_limit_one             = var.require_imds_hop_limit_one
   deny_athena_results_bucket_outside_org = var.deny_athena_results_bucket_outside_org
+  deny_tagged_kms_keys_off_org_network   = var.deny_tagged_kms_keys_off_org_network
 
   deny_ses_to_iam_users              = var.deny_ses_to_iam_users
   ses_iam_user_exempt_principal_arns = var.ses_iam_user_exempt_principal_arns
