@@ -24,6 +24,7 @@ which sends the same rendered documents to IAM Access Analyzer.
 
 from __future__ import annotations
 
+import ipaddress
 import math
 import re
 from collections.abc import Iterable, Mapping
@@ -145,6 +146,15 @@ def _numeric_equals(pattern: str, value: str) -> bool:
     return _number(pattern) == _number(value)
 
 
+def _ip_address(pattern: str, value: str) -> bool:
+    try:
+        network = ipaddress.ip_network(pattern, strict=False)
+        address = ipaddress.ip_address(value)
+    except ValueError:
+        raise UnsupportedPolicyFeature(f"not an IP address or CIDR: {pattern!r} / {value!r}") from None
+    return address in network
+
+
 # name -> (matcher, negated)
 _OPERATORS: dict[str, tuple[Any, bool]] = {
     "StringEquals": (_string_equals, False),
@@ -161,6 +171,8 @@ _OPERATORS: dict[str, tuple[Any, bool]] = {
     "Bool": (_bool, False),
     "NumericEquals": (_numeric_equals, False),
     "NumericNotEquals": (_numeric_equals, True),
+    "IpAddress": (_ip_address, False),
+    "NotIpAddress": (_ip_address, True),
 }
 
 
@@ -187,7 +199,7 @@ def _condition_holds(operator: str, key: str, values: Any, request: Request) -> 
 
     matched = False
     for raw in _as_list(values):
-        if base.startswith("Numeric") and "${" in str(raw):
+        if base.startswith(("Numeric", "IpAddress", "NotIpAddress")) and "${" in str(raw):
             # IAM substitutes policy variables only in string and ARN operators.
             raise UnsupportedPolicyFeature(f"policy variable in {operator!r} is not supported")
         pattern = substitute_variables(str(raw), request)

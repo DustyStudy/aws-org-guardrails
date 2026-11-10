@@ -116,6 +116,15 @@ variable "ses_iam_user_exempt_principal_arns" {
   default     = []
 }
 
+variable "third_party_vendor_networks" {
+  description = "Per outside vendor, the IAM role or user ARN patterns its credentials belong to and the source CIDRs it publishes; those principals are denied every action from any other address. Empty by default."
+  type = map(object({
+    principal_arns = list(string)
+    source_cidrs   = list(string)
+  }))
+  default = {}
+}
+
 variable "protected_role_name_prefixes" {
   description = "Role name prefixes only exempt principals may change."
   type        = list(string)

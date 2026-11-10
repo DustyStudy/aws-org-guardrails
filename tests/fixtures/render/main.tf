@@ -46,6 +46,14 @@ variable "ses_iam_user_exempt_principal_arns" {
   default = []
 }
 
+variable "third_party_vendor_networks" {
+  type = map(object({
+    principal_arns = list(string)
+    source_cidrs   = list(string)
+  }))
+  default = {}
+}
+
 module "policies" {
   source = "../../../modules/policies"
 
@@ -63,6 +71,8 @@ module "policies" {
 
   deny_ses_to_iam_users              = var.deny_ses_to_iam_users
   ses_iam_user_exempt_principal_arns = var.ses_iam_user_exempt_principal_arns
+
+  third_party_vendor_networks = var.third_party_vendor_networks
 }
 
 output "scp_policies" {

@@ -179,6 +179,62 @@ variable "ses_iam_user_exempt_principal_arns" {
   }
 }
 
+variable "third_party_vendor_networks" {
+  description = <<-EOT
+    Outside vendors, such as AI platforms, that hold credentials for this
+    organization. For each vendor, list the IAM role or user ARN patterns its
+    credentials belong to and the source IP ranges it publishes for calls to
+    AWS. Each entry adds a core statement denying those principals access
+    from any other address, so a credential copied out of the vendor in a
+    breach does not work from the attacker's network. List every role the
+    vendor chains into as well: sessions minted on the vendor network carry
+    the destination role's ARN. Leave out vendors that publish no fixed
+    ranges or reach AWS through a VPC endpoint, and check the patterns match
+    only the vendor's principals. The key becomes part of the statement Sid:
+    letters and digits only.
+  EOT
+  type = map(object({
+    principal_arns = list(string)
+    source_cidrs   = list(string)
+  }))
+  default  = {}
+  nullable = false
+
+  validation {
+    condition     = alltrue([for name in keys(var.third_party_vendor_networks) : can(regex("^[A-Za-z0-9]{1,40}$", name))])
+    error_message = "Vendor names become a statement Sid: 1-40 letters and digits."
+  }
+
+  validation {
+    condition = alltrue([
+      for v in values(var.third_party_vendor_networks) : length(v.principal_arns) > 0 && length(v.source_cidrs) > 0
+    ])
+    error_message = "Each vendor needs at least one principal ARN and one source CIDR."
+  }
+
+  validation {
+    # A name made only of wildcards (role/*, role/?*, role/*/*) would cut
+    # every principal off the network, not just the vendor's.
+    condition = alltrue(flatten([
+      for v in values(var.third_party_vendor_networks) : [
+        for arn in v.principal_arns :
+        can(regex("^arn:${var.partition}:iam::([*]|[0-9]{12}):(role|user)/.+$", arn)) && !can(regex(":(role|user)/[*?/]+$", arn))
+      ]
+    ]))
+    error_message = "Each vendor principal must be an IAM role or user ARN pattern in var.partition naming only the vendor's principals, such as arn:<partition>:iam::*:role/vendor-fireworks-*."
+  }
+
+  validation {
+    # A /0 range would allow every address and make the statement a no-op.
+    condition = alltrue(flatten([
+      for v in values(var.third_party_vendor_networks) : [
+        for cidr in v.source_cidrs : can(cidrhost(cidr, 0)) && !endswith(cidr, "/0")
+      ]
+    ]))
+    error_message = "Each source range must be a CIDR such as 203.0.113.0/24, and not /0."
+  }
+}
+
 variable "protected_role_name_prefixes" {
   description = "Role name prefixes that only exempt principals may modify or delete (the org access role, security tooling roles and so on)."
   type        = list(string)

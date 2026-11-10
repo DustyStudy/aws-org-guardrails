@@ -424,3 +424,65 @@ def test_govcloud_render_allows_only_govcloud_regions(govcloud):
     principal = f"arn:aws-us-gov:iam::{ACCOUNT}:role/app-deployer"
     assert decide(govcloud, req("ec2:RunInstances", principal, region="us-gov-west-1")) is Decision.ALLOW
     assert decide(govcloud, req("ec2:RunInstances", principal, region="us-east-1")) is Decision.EXPLICIT_DENY
+
+
+VENDOR_ROLE = f"arn:aws:iam::{ACCOUNT}:role/vendor-fireworks-evals"
+VENDOR_USER = f"arn:aws:iam::{ACCOUNT}:user/vendor-fireworks-datasets"
+VENDOR_IP = "203.0.113.40"
+ATTACKER_IP = "198.51.100.200"
+
+
+def vendor_req(action, principal=VENDOR_ROLE, source_ip=VENDOR_IP, **extra):
+    if source_ip is not None:
+        extra["aws:SourceIp"] = source_ip
+    return req(action, principal, **extra)
+
+
+def test_no_vendor_statement_by_default(commercial):
+    assert "DenyVendorOffNetwork" not in commercial.scps_raw["core"]
+
+
+@pytest.mark.parametrize("principal", [VENDOR_ROLE, VENDOR_USER])
+def test_vendor_credentials_work_from_the_vendors_ranges(vendor_locked, principal):
+    assert decide(vendor_locked, vendor_req("s3:GetObject", principal)) is Decision.ALLOW
+    assert decide(vendor_locked, vendor_req("bedrock:InvokeModel", principal, "2001:db8::40")) is Decision.ALLOW
+
+
+@pytest.mark.parametrize("principal", [VENDOR_ROLE, VENDOR_USER])
+@pytest.mark.parametrize("action", ["s3:GetObject", "bedrock:InvokeModel", "sts:AssumeRole", "iam:UntagRole"])
+def test_stolen_vendor_credentials_fail_from_elsewhere(vendor_locked, principal, action):
+    assert decide(vendor_locked, vendor_req(action, principal, ATTACKER_IP)) is Decision.EXPLICIT_DENY
+
+
+def test_vendor_credentials_fail_through_a_vpc_endpoint(vendor_locked):
+    # VPC endpoint calls carry no aws:SourceIp, so they are off the vendor's ranges.
+    request = vendor_req("s3:GetObject", source_ip=None, **{"aws:SourceVpce": "vpce-0abc"})
+    assert decide(vendor_locked, request) is Decision.EXPLICIT_DENY
+
+
+def test_one_vendors_range_does_not_admit_another(vendor_locked):
+    other = f"arn:aws:iam::{ACCOUNT}:role/vendor-notetaker-sync"
+    assert decide(vendor_locked, vendor_req("s3:GetObject", other, VENDOR_IP)) is Decision.EXPLICIT_DENY
+    assert decide(vendor_locked, vendor_req("s3:GetObject", other, "192.0.2.9")) is Decision.ALLOW
+
+
+def test_aws_service_calls_for_a_vendor_are_skipped(vendor_locked):
+    # AWS redacts network context when S3 calls KMS for the vendor.
+    request = vendor_req("kms:Decrypt", source_ip=None, **{"aws:ViaAWSService": "true"})
+    assert decide(vendor_locked, request) is Decision.ALLOW
+
+
+@pytest.mark.parametrize("principal", [WORKLOAD, BREAKGLASS])
+def test_other_principals_are_untouched_by_vendor_ranges(vendor_locked, principal):
+    assert decide(vendor_locked, vendor_req("s3:GetObject", principal, ATTACKER_IP)) is Decision.ALLOW
+
+
+def test_core_bundle_with_every_optional_statement_and_two_vendors_fits(ssc_locked):
+    assert len(ssc_locked.scps_raw["core"]) <= SCP_MAX_CHARS
+
+
+def test_known_limit_a_session_chained_from_the_vendor_role_is_not_covered(vendor_locked):
+    # Documented limit: a role the vendor assumed on its own network has its own
+    # ARN, so it must be listed too. This pins the behavior so the docs stay true.
+    chained = f"arn:aws:iam::{ACCOUNT}:role/eval-dataset-reader"
+    assert decide(vendor_locked, vendor_req("s3:GetObject", chained, ATTACKER_IP)) is Decision.ALLOW

@@ -139,6 +139,33 @@ locals {
         )
       },
     ] : [],
+    [
+      # A credential handed to an outside vendor is only as safe as that
+      # vendor. Attackers who broke into Fireworks AI with stolen internal
+      # credentials read API keys and tokens customers had stored as job
+      # environment variables, to resell LLM access (Fireworks AI bulletins,
+      # 2026-10-09 and 2026-11-09). This denies a vendor's roles and users
+      # access unless the call comes from the source ranges that vendor
+      # publishes, so a copied credential fails from the attacker's network.
+      # aws:SourceIp is absent on VPC endpoint calls, so NotIpAddress denies
+      # those too. AWS redacts network context on calls services make for
+      # the caller, so those are skipped. Limits: sts:GetCallerIdentity
+      # cannot be denied; sessions minted on the vendor network before the
+      # theft (a chained role, a GetFederationToken user) carry another ARN,
+      # so list those roles too; code run on the vendor's own machines
+      # passes.
+      for name, vendor in var.third_party_vendor_networks : {
+        Sid      = "DenyVendorOffNetwork${name}"
+        Effect   = "Deny"
+        Action   = ["*"]
+        Resource = "*"
+        Condition = merge(local.exempt, {
+          ArnLike      = { "aws:PrincipalArn" = vendor.principal_arns }
+          NotIpAddress = { "aws:SourceIp" = vendor.source_cidrs }
+          BoolIfExists = { "aws:ViaAWSService" = "false", "aws:PrincipalIsAWSService" = "false" }
+        })
+      }
+    ],
   )
 
   security_services_statements = [
