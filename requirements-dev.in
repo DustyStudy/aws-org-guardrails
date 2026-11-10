@@ -1,7 +1,7 @@
 # Direct pins. After editing, recompile the hash-pinned lock:
 #
 #   uv pip compile requirements-dev.in --universal --generate-hashes --python-version 3.12 --no-header -o requirements-dev.txt
-pytest==9.1.1
+pytest==9.2.0
 ruff==0.17.3
 # The AI/ML module Lambdas import boto3; tests mock every client.
-boto3==1.43.120
+boto3==1.43.123
