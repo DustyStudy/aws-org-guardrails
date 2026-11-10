@@ -191,3 +191,30 @@ def test_numeric_not_equals_compares_numbers(actual, expected):
 def test_numeric_operators_reject_variables_and_non_numbers(value):
     with pytest.raises(UnsupportedPolicyFeature):
         evaluate([_numeric_deny(value)], Request("ec2:RunInstances", "*", {"hop": "1", "expected": "1"}))
+
+
+def _off_network_deny(cidrs):
+    return policy(
+        {"Effect": "Deny", "Action": "*", "Resource": "*", "Condition": {"NotIpAddress": {"aws:SourceIp": cidrs}}}
+    )
+
+
+@pytest.mark.parametrize(
+    ("source_ip", "expected"),
+    [
+        ("203.0.113.7", Decision.ALLOW),
+        ("2001:db8::1", Decision.ALLOW),
+        ("198.51.100.7", Decision.EXPLICIT_DENY),
+        (None, Decision.EXPLICIT_DENY),  # VPC endpoint calls carry no aws:SourceIp
+    ],
+)
+def test_not_ip_address_matches_cidrs_and_denies_a_missing_source_ip(source_ip, expected):
+    context = {} if source_ip is None else {"aws:SourceIp": source_ip}
+    request = Request("s3:GetObject", "*", context)
+    assert scp_decision([_off_network_deny(["203.0.113.0/24", "2001:db8::/32"])], request) is expected
+
+
+@pytest.mark.parametrize("cidr", ["${aws:SourceIp}", "not-a-cidr"])
+def test_ip_operators_reject_variables_and_bad_cidrs(cidr):
+    with pytest.raises(UnsupportedPolicyFeature):
+        scp_decision([_off_network_deny([cidr])], Request("s3:GetObject", "*", {"aws:SourceIp": "203.0.113.7"}))

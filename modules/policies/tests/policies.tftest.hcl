@@ -189,6 +189,100 @@ run "ses_exemption_must_be_an_iam_user" {
   expect_failures = [var.ses_iam_user_exempt_principal_arns]
 }
 
+run "vendor_network_statement_is_opt_in" {
+  command = plan
+
+  assert {
+    condition     = !strcontains(output.scp_policies["core"], "DenyVendorOffNetwork")
+    error_message = "Vendor network statements must only appear for listed vendors."
+  }
+}
+
+run "vendor_network_statement_keys_on_vendor_principals_and_ranges" {
+  command = plan
+
+  variables {
+    third_party_vendor_networks = {
+      Fireworks = {
+        principal_arns = ["arn:aws:iam::*:role/vendor-fireworks-*"]
+        source_cidrs   = ["203.0.113.0/24", "2001:db8::/32"]
+      }
+    }
+  }
+
+  assert {
+    condition = jsonencode(one([
+      for s in jsondecode(output.scp_policies["core"]).Statement : s.Condition if s.Sid == "DenyVendorOffNetworkFireworks"
+      ])) == jsonencode({
+      ArnLike      = { "aws:PrincipalArn" = ["arn:aws:iam::*:role/vendor-fireworks-*"] }
+      ArnNotLike   = { "aws:PrincipalArn" = var.exempt_principal_arns }
+      BoolIfExists = { "aws:PrincipalIsAWSService" = "false", "aws:ViaAWSService" = "false" }
+      NotIpAddress = { "aws:SourceIp" = ["203.0.113.0/24", "2001:db8::/32"] }
+    })
+    error_message = "The vendor deny must cover only the vendor's principals off its ranges, skip AWS service calls, and carry the role exemption."
+  }
+}
+
+run "vendor_principal_cannot_be_every_role" {
+  command = plan
+
+  variables {
+    third_party_vendor_networks = {
+      Fireworks = { principal_arns = ["arn:aws:iam::*:role/*"], source_cidrs = ["203.0.113.0/24"] }
+    }
+  }
+
+  expect_failures = [var.third_party_vendor_networks]
+}
+
+run "vendor_principal_cannot_be_only_wildcards" {
+  command = plan
+
+  variables {
+    third_party_vendor_networks = {
+      Fireworks = { principal_arns = ["arn:aws:iam::*:role/?*"], source_cidrs = ["203.0.113.0/24"] }
+    }
+  }
+
+  expect_failures = [var.third_party_vendor_networks]
+}
+
+run "vendor_principal_must_match_partition" {
+  command = plan
+
+  variables {
+    third_party_vendor_networks = {
+      Fireworks = { principal_arns = ["arn:aws-us-gov:iam::*:role/vendor-fireworks-*"], source_cidrs = ["203.0.113.0/24"] }
+    }
+  }
+
+  expect_failures = [var.third_party_vendor_networks]
+}
+
+run "vendor_range_cannot_be_everything" {
+  command = plan
+
+  variables {
+    third_party_vendor_networks = {
+      Fireworks = { principal_arns = ["arn:aws:iam::*:role/vendor-fireworks-*"], source_cidrs = ["0.0.0.0/0"] }
+    }
+  }
+
+  expect_failures = [var.third_party_vendor_networks]
+}
+
+run "vendor_name_must_fit_a_sid" {
+  command = plan
+
+  variables {
+    third_party_vendor_networks = {
+      "fireworks-ai" = { principal_arns = ["arn:aws:iam::*:role/vendor-fireworks-*"], source_cidrs = ["203.0.113.0/24"] }
+    }
+  }
+
+  expect_failures = [var.third_party_vendor_networks]
+}
+
 run "boundary_references_itself_by_account_variable" {
   command = plan
 

@@ -8,6 +8,27 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `core` bundle: optional `DenyVendorOffNetwork<Name>` statements
+  (`third_party_vendor_networks`, empty by default). For each listed
+  outside vendor, the IAM roles and users its credentials belong to are
+  denied access unless the call comes from the source CIDRs the vendor
+  publishes, so a credential copied out of the vendor in a breach fails
+  from the attacker's network. VPC endpoint calls carry no `aws:SourceIp`
+  and are denied too; calls AWS services make for the caller are skipped,
+  and exempt roles are unaffected. Limits: `sts:GetCallerIdentity` cannot
+  be denied, so a stolen key still confirms who it is; sessions minted on
+  the vendor network before the theft (a chained role, a
+  `GetFederationToken` user) carry another ARN, so roles the vendor chains
+  into must be listed too; it does not stop an attacker running code on
+  the vendor's own machines; and it cannot be used for vendors without
+  fixed egress ranges. Each vendor adds about 470 characters to the core
+  bundle. It adds no SCP. Threat: the 2026
+  Fireworks AI breach, where stolen internal credentials exposed API keys
+  and tokens customers stored as job environment variables, for resale
+  of LLM access ([Fireworks AI, 2026-10-09](https://fireworks.ai/security/bulletins/october-2026-security-incident)).
+  NIST SP 800-53 Rev5: AC-3, AC-4, SC-7, SA-9, IA-5.
+- `guardrails_tools.iam_eval`: `IpAddress` and `NotIpAddress` condition
+  operators, so network conditions are tested as behavior.
 - `data-and-compute` bundle: optional `DenyTaggedKmsKeysOffOrgNetwork`
   statement (`deny_tagged_kms_keys_off_org_network`, off by default)
   denies `Sign`, `Decrypt`, `GenerateDataKey*`, `ReEncrypt*`,
