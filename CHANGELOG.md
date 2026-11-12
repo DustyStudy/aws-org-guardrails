@@ -137,6 +137,18 @@ uses [Semantic Versioning](https://semver.org/).
   AgentCore console creates the execution policy as customer-managed.
   Existing deployments can report roles they did not report before.
 
+### Security
+
+- `claude-apps-gateway`: the Dockerfile fails the build when the bundled
+  `claude` binary embeds a Bun runtime older than 1.4.4, the first release
+  carrying the fixed Brotli decoder (CVE-2026-111497, an out-of-bounds write
+  reachable with a crafted Brotli stream). ECR scan-on-push reads OS
+  packages only and can't see a runtime compiled into a single binary. A
+  binary without a `Bun vX.Y.Z` banner fails the check rather than skipping
+  it. Limits: it reads Bun's version banner, so it covers only Bun's copy of
+  Brotli, and it checks new builds, not images already pushed; redeploy
+  under a new tag to replace a running task. NIST SP 800-53 Rev5: SI-2, RA-5.
+
 ## [0.3.0] - 2026-10-06
 
 ### Added

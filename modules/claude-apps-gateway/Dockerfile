@@ -33,6 +33,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 COPY claude /usr/local/bin/claude
 RUN chmod +x /usr/local/bin/claude
 
+# The claude binary bundles the Bun runtime and its Brotli decoder, which
+# ECR image scanning can't see. Refuse a binary whose Bun predates 1.4.4,
+# the first release with the fixed decoder (CVE-2026-111497). A binary with
+# no "Bun vX.Y.Z" banner fails too, so a format change can't skip the check.
+RUN bun_version="$(grep -aoE 'Bun v[0-9]+\.[0-9]+\.[0-9]+' /usr/local/bin/claude | head -n1 | cut -c6-)" \
+    && dpkg --compare-versions "${bun_version:-0}" ge 1.4.4 \
+    || { echo "claude binary embeds Bun ${bun_version:-unknown}; Bun 1.4.4 or later is required (CVE-2026-111497). Download a newer Claude Code release." >&2; exit 1; }
+
 COPY gateway.yaml /etc/claude/gateway.yaml
 COPY rds-global-bundle.pem /etc/claude/rds-global-bundle.pem
 ENV NODE_EXTRA_CA_CERTS=/etc/claude/rds-global-bundle.pem
