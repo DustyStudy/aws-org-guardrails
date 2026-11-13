@@ -59,8 +59,8 @@ resource "aws_organizations_policy" "this" {
     }
 
     precondition {
-      condition     = length(local.bundles) + var.other_scps_per_target <= 5
-      error_message = "Attaching ${length(local.bundles)} bundles to targets that already hold ${var.other_scps_per_target} SCPs exceeds the AWS limit of 5 SCPs per target. Disable a bundle or attach some at a parent OU."
+      condition     = length(local.bundles) + var.other_scps_per_target <= var.max_scps_per_target
+      error_message = "Attaching ${length(local.bundles)} bundles to targets that already hold ${var.other_scps_per_target} SCPs exceeds max_scps_per_target (${var.max_scps_per_target}). Disable a bundle, attach some at a parent OU, or set max_scps_per_target to 10 (AWS's current quota)."
     }
   }
 }

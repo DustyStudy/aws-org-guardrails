@@ -1,10 +1,10 @@
 # Service control policies, grouped into bundles.
 #
-# AWS allows at most 5 SCPs attached directly to a root, OU or account, and
-# FullAWSAccess usually takes one slot. Grouping related statements into four
-# bundles leaves room for it while keeping each bundle focused enough to
-# review on its own. Each bundle must also stay under the 5,120 character SCP
-# size limit; tests/test_scps.py checks both limits on every render.
+# AWS allowed at most 5 SCPs attached directly to a root, OU or account, of
+# 5,120 characters each, until it doubled both in May 2026. The bundles keep
+# to the old limits on purpose, as a compatibility margin and to leave room
+# for an organization's own SCPs: four bundles leave a slot for FullAWSAccess,
+# and tests/test_scps.py checks both limits on every render.
 #
 # Every statement is a Deny. Allow comes from FullAWSAccess (or whatever
 # allow-list SCPs the organization already uses), so these bundles only
@@ -13,6 +13,9 @@
 locals {
   p = var.partition
 
+  # The threat behind each opt-in statement, with sources, is in
+  # CHANGELOG.md; comments here keep only why each condition is shaped as it is.
+  #
   # Most statements carry this condition so the break-glass and security
   # pipeline roles can still repair what the guardrail protects.
   exempt = {
@@ -30,7 +33,7 @@ locals {
     {
       # Attackers mining with stolen IAM credentials turned on termination
       # protection so responders had to switch it off before deleting the
-      # instances (Amazon, 2025-12-16). Stop protection blocks the isolation
+      # instances. Stop protection blocks the isolation
       # playbook's StopInstances the same way. These three deny changing
       # either after launch, on or off, except to exempt roles.
       # EC2 sets both ec2:Attribute/<Name> and ec2:Attribute for either
@@ -174,9 +177,7 @@ locals {
         # A Bedrock API key, CodeCommit Git password or Keyspaces password is
         # a long-term secret bound to an existing IAM user, and minting one
         # needs no access key. LLMjacking actors add a Bedrock API key to the
-        # identity they control as a second way in (FortiGuard Labs,
-        # 2026-09-03); harvested keys keep feeding them (StepSecurity,
-        # GhostAction, 2026-10-09). DenyIamUserCredentials stops new users
+        # identity they control as a second way in. DenyIamUserCredentials stops new users
         # and access keys, not these. Reset issues a new secret for an
         # existing credential, so it is denied too. Update only switches a
         # credential between Active and Inactive and stays open, so anyone
@@ -196,7 +197,7 @@ locals {
         # Access keys scraped from web hosts are checked for SES first: the
         # key's secret converts offline into an SES SMTP password, and a
         # verified sender in a production-access account is worth more than
-        # the key itself (LevelBlue SpiderLabs, TIKTOUK, 2026-10-01). The
+        # the key itself. The
         # SMTP endpoint authorizes as ses:SendRawEmail, so it is covered.
         # ses:* is deliberate: quota checks, identity verification and the
         # production-access request are all part of the same abuse, and an
@@ -218,10 +219,8 @@ locals {
     ] : [],
     [
       # A credential handed to an outside vendor is only as safe as that
-      # vendor. Attackers who broke into Fireworks AI with stolen internal
-      # credentials read API keys and tokens customers had stored as job
-      # environment variables, to resell LLM access (Fireworks AI bulletins,
-      # 2026-10-09 and 2026-11-09). This denies a vendor's roles and users
+      # vendor: a breach there exposes every customer credential it holds.
+      # This denies a vendor's roles and users
       # access unless the call comes from the source ranges that vendor
       # publishes, so a copied credential fails from the attacker's network.
       # aws:SourceIp is absent on VPC endpoint calls, so NotIpAddress denies
@@ -250,10 +249,15 @@ locals {
       Sid    = "ProtectAuditLogging"
       Effect = "Deny"
       Action = [
+        "cloudtrail:DeleteEventDataStore",
         "cloudtrail:DeleteTrail",
         "cloudtrail:PutEventSelectors",
+        "cloudtrail:PutInsightSelectors",
+        "cloudtrail:StopEventDataStoreIngestion",
         "cloudtrail:StopLogging",
+        "cloudtrail:UpdateEventDataStore",
         "cloudtrail:UpdateTrail",
+        "config:DeleteConfigurationAggregator",
         "config:DeleteConfigurationRecorder",
         "config:DeleteDeliveryChannel",
         "config:PutConfigurationRecorder",
@@ -269,14 +273,20 @@ locals {
         "access-analyzer:DeleteAnalyzer",
         "guardduty:CreateFilter",
         "guardduty:DeleteDetector",
+        "guardduty:DeleteMembers",
+        "guardduty:DeletePublishingDestination",
         "guardduty:DisassociateFromAdministratorAccount",
         "guardduty:DisassociateFromMasterAccount",
+        "guardduty:DisassociateMembers",
+        "guardduty:StopMonitoringMembers",
         "guardduty:UpdateDetector",
         "guardduty:UpdateFilter",
         "securityhub:BatchDisableStandards",
+        "securityhub:DeleteMembers",
         "securityhub:DisableSecurityHub",
         "securityhub:DisassociateFromAdministratorAccount",
         "securityhub:DisassociateFromMasterAccount",
+        "securityhub:DisassociateMembers",
       ]
       Resource  = "*"
       Condition = local.exempt
@@ -345,9 +355,8 @@ locals {
     ], var.require_imds_hop_limit_one ? [
     {
       # A container on an instance reaches the instance role's credentials
-      # through IMDS only when the hop limit is 2 or more. The backdoored
-      # LiteLLM 1.107.0 Docker image queried IMDSv2 for role credentials
-      # (StepSecurity, 2026-10-21). A hop limit of 1 keeps bridge-networked
+      # through IMDS only when the hop limit is 2 or more, which a backdoored
+      # container image can use. A hop limit of 1 keeps bridge-networked
       # containers out; host-networked containers and processes on the host
       # still reach IMDS. NumericNotEquals is true when the key is missing,
       # so callers must set the hop limit, as with RequireImdsV2OnLaunch.
@@ -380,8 +389,8 @@ locals {
       # aws-athena-query-results-<account-id>-<region> as the default Athena
       # result location without checking who owns it. Whoever creates that
       # name first in their own account reads the query results and can
-      # change what the caller gets back (AWS bulletin 2026-153-AWS,
-      # CVE-2026-118029). Athena reads and writes results with the caller's
+      # change what the caller gets back (CVE-2026-118029). Athena reads and
+      # writes results with the caller's
       # credentials, so the deny applies. aws:ResourceOrgID is missing for a
       # bucket in a standalone account, and StringNotEquals is true when the
       # key is missing, so those are denied too. No exemption: no role has a
@@ -399,8 +408,6 @@ locals {
     },
     ] : [], [for statement in local.instance_protection_statements : statement if var.deny_instance_protection_changes], var.deny_tagged_kms_keys_off_org_network ? [
     {
-      # The 2026 Binance theft began on one engineer's laptop (a fake job
-      # interview's "assignment") and reached hot-wallet signing over months.
       # Credentials lifted from a laptop work from anywhere unless the key
       # also checks the network. This denies using or re-pointing a KMS key
       # tagged guardrails:network-perimeter=true unless the call arrives

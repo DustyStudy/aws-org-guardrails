@@ -21,15 +21,18 @@ covers the second point.
 
 ## Four bundles, not one SCP per control
 
-AWS allows 5 SCPs attached directly to a root, OU or account, and each SCP is
-limited to 5,120 characters. FullAWSAccess normally takes one slot. One SCP
+AWS allowed 5 SCPs attached directly to a root, OU or account, and each SCP
+was limited to 5,120 characters. In May 2026 AWS raised both to 10 and
+10,240. The bundles still keep to the old limits as a deliberate
+compatibility choice, and `scp-baseline` defaults to 5 per target
+(`max_scps_per_target` raises it to 10). FullAWSAccess normally takes one slot. One SCP
 per control would hit the count limit almost immediately. One big SCP would
 be hard to review and would eventually hit the size limit.
 
 Four bundles grouped by what they protect leave a slot free.
 `tests/test_scps.py` checks both limits on every render, and the
-`scp-baseline` module refuses to plan an attachment that would exceed 5 once
-`other_scps_per_target` is counted.
+`scp-baseline` module refuses to plan an attachment that would exceed
+`max_scps_per_target` once `other_scps_per_target` is counted.
 
 ## Exempt principals are required
 

@@ -21,11 +21,26 @@ variable "enabled_bundles" {
   default     = null
 }
 
+variable "max_scps_per_target" {
+  description = <<-EOT
+    Per-target SCP limit the plan enforces. AWS raised the quota from 5 to
+    10 in May 2026; 5 stays the default as a conservative margin that
+    leaves room for SCPs managed elsewhere. Set 10 to use the full quota.
+  EOT
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = contains([5, 10], var.max_scps_per_target)
+    error_message = "max_scps_per_target must be 5 or 10, the AWS quotas before and after May 2026."
+  }
+}
+
 variable "other_scps_per_target" {
   description = <<-EOT
     SCPs already attached directly to each target outside this module
-    (FullAWSAccess counts as one). AWS allows 5 per target, so this module
-    refuses to plan an attachment that would go over the limit.
+    (FullAWSAccess counts as one). The module refuses to plan an attachment
+    that would go over max_scps_per_target.
   EOT
   type        = number
   default     = 1
