@@ -397,3 +397,25 @@ run "rejects_non_service_principals_for_service_linked_roles" {
 
   expect_failures = [var.service_linked_role_services]
 }
+
+run "instance_protection_exemption_must_be_a_protected_role" {
+  command = plan
+
+  variables {
+    deny_instance_protection_changes          = true
+    instance_protection_exempt_principal_arns = ["arn:aws:iam::*:role/platform-deploy"]
+  }
+
+  expect_failures = [var.instance_protection_exempt_principal_arns]
+}
+
+run "instance_protection_exemption_must_be_a_role_in_the_partition" {
+  command = plan
+
+  variables {
+    deny_instance_protection_changes          = true
+    instance_protection_exempt_principal_arns = ["arn:aws-us-gov:iam::*:role/security-deploy"]
+  }
+
+  expect_failures = [var.instance_protection_exempt_principal_arns]
+}

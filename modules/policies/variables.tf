@@ -119,6 +119,45 @@ variable "require_imds_hop_limit_one" {
   default     = false
 }
 
+variable "deny_instance_protection_changes" {
+  description = <<-EOT
+    Deny turning EC2 termination protection or stop protection on or off
+    after launch, so stolen credentials cannot lock mining instances against
+    deletion or the isolation playbook's stop. Off by default: list roles
+    that manage these settings today (for example a Terraform deploy role
+    with disable_api_termination) in instance_protection_exempt_principal_arns
+    first. Protection set at launch is not covered.
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "instance_protection_exempt_principal_arns" {
+  description = "Roles, besides exempt_principal_arns, that may change instance termination and stop protection when deny_instance_protection_changes is set. ARN patterns allowed; each name must start with one of protected_role_name_prefixes."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for arn in var.instance_protection_exempt_principal_arns :
+      can(regex("^arn:aws(-us-gov|-cn)?:iam::([*]|[0-9]{12}):role/.+$", arn)) && split(":", arn)[1] == var.partition
+    ])
+    error_message = "Each instance protection exempt principal must be an IAM role ARN pattern in var.partition, such as arn:aws:iam::*:role/security-platform-deploy."
+  }
+
+  # As with exempt_principal_arns: a name anyone can create or change would
+  # hand them the exemption.
+  validation {
+    condition = alltrue([
+      for arn in var.instance_protection_exempt_principal_arns : anytrue([
+        for prefix in var.protected_role_name_prefixes :
+        startswith(element(split(":role/", arn), 1), prefix)
+      ])
+    ])
+    error_message = "Every instance protection exempt role name must start with one of protected_role_name_prefixes, or anyone could create a role with that name and inherit the exemption."
+  }
+}
+
 variable "deny_athena_results_bucket_outside_org" {
   description = <<-EOT
     Deny reading and writing objects in buckets named like the Athena

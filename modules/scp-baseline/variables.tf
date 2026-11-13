@@ -92,6 +92,18 @@ variable "require_imds_hop_limit_one" {
   default     = false
 }
 
+variable "deny_instance_protection_changes" {
+  description = "Deny turning EC2 termination or stop protection on or off after launch, except for exempt roles. Off by default; list roles that manage it in instance_protection_exempt_principal_arns first. Protection set at launch is not covered."
+  type        = bool
+  default     = false
+}
+
+variable "instance_protection_exempt_principal_arns" {
+  description = "Roles, besides exempt_principal_arns, that may change instance termination and stop protection."
+  type        = list(string)
+  default     = []
+}
+
 variable "deny_athena_results_bucket_outside_org" {
   description = "Deny S3 access to Athena default result bucket names (aws-athena-query-results-<account-id>-<region>) owned outside the organization. Off by default; check S3 data events for such buckets in outside accounts first."
   type        = bool

@@ -118,7 +118,9 @@ def delete_role_if_exists(name: str) -> Callable[[boto3.Session], None]:
     return cleanup
 
 
-def build_probes(account_id: str, boundary_arn: str, ami: str, instance_id: str | None) -> list[Probe]:
+def build_probes(
+    account_id: str, boundary_arn: str, ami: str, instance_id: str | None, instance_protection: bool = False
+) -> list[Probe]:
     ec2 = lambda s, region="us-east-1": s.client("ec2", region_name=region)  # noqa: E731
 
     def run_instances(tokens: str) -> Callable[[boto3.Session], object]:
@@ -321,6 +323,23 @@ def build_probes(account_id: str, boundary_arn: str, ami: str, instance_id: str 
             Probe("workload", "ec2:ModifyInstanceMetadataOptions (IMDSv1 downgrade)", SCP, downgrade),
             Probe("breakglass", "ec2:ModifyInstanceMetadataOptions (IMDSv1 downgrade)", NOT_DENIED, downgrade),
         ]
+    if instance_id and instance_protection:
+        # ModifyInstanceAttribute takes the attribute in two request forms;
+        # each guardrail statement keys on one of them.
+        def modify(**kwargs: object) -> Callable[[boto3.Session], object]:
+            return lambda s: ec2(s).modify_instance_attribute(InstanceId=instance_id, DryRun=True, **kwargs)
+
+        protect = modify(DisableApiTermination={"Value": True})
+        protect_named = modify(Attribute="disableApiTermination", Value="true")
+        stop_protect = modify(DisableApiStop={"Value": True})
+        source_dest = modify(SourceDestCheck={"Value": True})
+        probes += [
+            Probe("workload", "ec2:ModifyInstanceAttribute DisableApiTermination", SCP, protect),
+            Probe("workload", "ec2:ModifyInstanceAttribute Attribute=disableApiTermination", SCP, protect_named),
+            Probe("workload", "ec2:ModifyInstanceAttribute DisableApiStop", SCP, stop_protect),
+            Probe("workload", "ec2:ModifyInstanceAttribute SourceDestCheck", NOT_DENIED, source_dest),
+            Probe("breakglass", "ec2:ModifyInstanceAttribute DisableApiTermination", NOT_DENIED, protect),
+        ]
     return probes
 
 
@@ -351,6 +370,11 @@ def main() -> int:
         action="store_true",
         help="launch a t3.nano (IMDSv2) to probe ModifyInstanceMetadataOptions, then terminate it",
     )
+    parser.add_argument(
+        "--instance-protection",
+        action="store_true",
+        help="with --launch-instance, also probe deny_instance_protection_changes (apply proof/ with it on first)",
+    )
     args = parser.parse_args()
 
     base = boto3.Session(profile_name=args.profile, region_name="us-east-1")
@@ -368,7 +392,7 @@ def main() -> int:
     instance_id = launch_instance(base, ami) if args.launch_instance else None
     rows, failures = [], 0
     try:
-        for probe in build_probes(account_id, args.boundary_policy, ami, instance_id):
+        for probe in build_probes(account_id, args.boundary_policy, ami, instance_id, args.instance_protection):
             session = sessions[probe.principal]
             actual, detail = classify(session, probe.call)
             if probe.cleanup:

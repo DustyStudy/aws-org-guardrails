@@ -55,6 +55,16 @@ def hop_locked() -> RenderedPolicies:
 
 
 @pytest.fixture(scope="session")
+def protection_locked() -> RenderedPolicies:
+    return render(
+        extra_vars={
+            "deny_instance_protection_changes": True,
+            "instance_protection_exempt_principal_arns": ["arn:aws:iam::*:role/security-platform-deploy"],
+        }
+    )
+
+
+@pytest.fixture(scope="session")
 def data_locked() -> RenderedPolicies:
     # Every optional data-and-compute statement on, so the size test sees the largest bundle.
     return render(
@@ -62,6 +72,8 @@ def data_locked() -> RenderedPolicies:
             "require_imds_hop_limit_one": True,
             "deny_athena_results_bucket_outside_org": True,
             "deny_tagged_kms_keys_off_org_network": True,
+            "deny_instance_protection_changes": True,
+            "instance_protection_exempt_principal_arns": [f"arn:aws:iam::*:role/security-{'x' * 40}"],
         }
     )
 

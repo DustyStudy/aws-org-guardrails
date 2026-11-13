@@ -30,6 +30,12 @@ variable "sandbox_profile" {
   type        = string
 }
 
+variable "deny_instance_protection_changes" {
+  description = "Attach the opt-in instance termination and stop protection statements, for probe.py --instance-protection."
+  type        = bool
+  default     = false
+}
+
 variable "sandbox_ou_id" {
   description = "OU that holds only the sandbox account."
   type        = string
@@ -134,6 +140,8 @@ module "scp_baseline" {
   exempt_principal_arns        = local.exempt_principal_arns
   protected_role_name_prefixes = local.protected_role_name_prefixes
   allowed_regions              = local.allowed_regions
+
+  deny_instance_protection_changes = var.deny_instance_protection_changes
 
   depends_on = [
     aws_iam_role_policy_attachment.breakglass_admin,

@@ -229,6 +229,32 @@ else. And the model allow-list holds through inference profiles: a profile
 of an allow-listed model works, and a profile of any other model is denied
 on the underlying foundation-model ARN.
 
+## Run 3 (2026-11-12): instance termination and stop protection
+
+### Setup
+
+The three `deny_instance_protection_changes` statements, rendered from this
+branch, were attached on their own as a temporary SCP to an OU holding one
+member account, which already sat under the organization-wide baseline.
+One t3.nano (IMDSv2, hop limit 1) was launched there, probed with
+`ModifyInstanceAttribute` DryRun calls as an Identity Center
+`AdministratorAccess` session (not exempt), and then terminated; the SCP
+was detached and deleted. Region us-east-1, commercial partition.
+
+### Results: 4 of 4 probes matched
+
+| Request | Expected | Result | Statements in the decoded denial |
+|---|---|---|---|
+| `DisableApiTermination={Value:true}` | denied | denied (explicit SCP deny) | `DenyInstanceDisableApiTerminationChange`, `DenyInstanceProtectionAttributeChange` |
+| `Attribute=disableApiTermination`, `Value=true` | denied | denied (explicit SCP deny) | `DenyInstanceDisableApiTerminationChange`, `DenyInstanceProtectionAttributeChange` |
+| `DisableApiStop={Value:true}` | denied | denied (explicit SCP deny) | `DenyInstanceDisableApiStopChange`, `DenyInstanceProtectionAttributeChange` |
+| `SourceDestCheck={Value:true}` (control) | allowed | `DryRunOperation` | none |
+
+The decoded authorization context showed EC2 sets both
+`ec2:Attribute/<Name>` and `ec2:Attribute` for either request form, so
+each protection change matches two of the three statements. Exempt roles
+were not probed live; `tests/test_scps.py` covers them.
+
 ## Not covered by either run
 
 - `organizations:LeaveOrganization`: not probed, because a guardrail bug
