@@ -33,9 +33,9 @@ locals {
       # instances (Amazon, 2025-12-16). Stop protection blocks the isolation
       # playbook's StopInstances the same way. These three deny changing
       # either after launch, on or off, except to exempt roles.
-      # Assumes EC2 sets ec2:Attribute/<name> when the request sets that
-      # attribute, and ec2:Attribute to the name in the Attribute=<name>
-      # form; proof/probe.py --instance-protection checks both live.
+      # EC2 sets both ec2:Attribute/<Name> and ec2:Attribute for either
+      # request form (DisableApiTermination.Value or Attribute=<name>);
+      # confirmed live 2026-11-12, docs/PROOF.md run 3.
       # Not covered: protection set at launch (RunInstances or a launch
       # template), which has no condition key.
       Sid      = "DenyInstanceDisableApiTerminationChange"

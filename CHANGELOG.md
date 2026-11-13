@@ -16,8 +16,9 @@ uses [Semantic Versioning](https://semver.org/).
   and, for the `Attribute=<name>` request form, `ec2:Attribute`. Exempt
   roles and `instance_protection_exempt_principal_arns` keep it. Limits:
   protection set at launch (`RunInstances`, launch templates) has no
-  condition key and is not covered, and how EC2 fills these keys for this
-  action is not yet confirmed by a live run. About 1,000 characters; adds no
+  condition key and is not covered. Confirmed live (docs/PROOF.md run 3):
+  both request forms and stop protection are denied, other attribute
+  changes are not. About 1,000 characters; adds no
   SCP. Threat: attackers mining with compromised IAM credentials turned on
   termination protection so responders had to switch it off before
   deleting the instances (Amazon, 2025-12-16).
