@@ -192,6 +192,34 @@ uses [Semantic Versioning](https://semver.org/).
   first seen while `Pending`, or restarted before it is recreated, is
   stopped again.
 
+- `ai-ml-guardrails` / `lockdown-sagemaker-notebooks`: `DirectInternetAccess`
+  and `RootAccess` default to Enabled when a create request leaves them
+  out, which slipped past the old `StringEquals "Enabled"` checks.
+  `CreateNotebookInstance` is now denied unless both are explicitly
+  `Disabled`; a new `DenySageMakerRootAccessOnUpdate` keeps the update
+  check. **Breaking:** notebook creation must pass both settings.
+- `region-restriction`: added `acm`, `billing`, `payments`, `tax`,
+  `invoicing`, `freetier`, `notifications`, `notifications-contacts` and
+  `ecr-public` to the
+  global-service carve-out. Without them, CloudFront certificates, the
+  newer billing console permissions, User Notifications and ECR Public
+  broke in organizations that do not allow us-east-1.
+- `data-and-compute/DenyImdsDowngrade` now allows a metadata options change
+  that requests `HttpTokens=required` (`ec2:Attribute/HttpTokens`), so
+  instances can be moved to IMDSv2. With `require_imds_hop_limit_one`, the
+  new `RequireImdsHopLimitOneOnModify` also requires
+  `HttpPutResponseHopLimit=1` on every change. A change that omits either
+  value is denied, as before.
+- `ai-agent-iam-auditor`: attached and inline policy lists are now
+  paginated (IAM can return a partial page), and any read failure,
+  including listing roles, is
+  reported in a separate "INCOMPLETE" notification and as
+  `"complete": false` instead of looking like a clean result.
+- `bedrock-logging-enforcement`: drift now covers the S3 key prefix, the
+  CloudWatch role and large-data bucket, and any added destination, not
+  just the bucket and log group names. An outside destination added
+  alongside the managed one was previously reported compliant.
+
 ## [0.3.0] - 2026-10-06
 
 ### Added

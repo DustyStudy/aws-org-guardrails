@@ -102,6 +102,15 @@ TYPE_WIDE_RESOURCE = re.compile("[A-Za-z0-9_-]+[/:][*]")
 CHECK_BEDROCK_AGENT_ACTION_GROUPS = os.environ.get("CHECK_BEDROCK_AGENT_ACTION_GROUPS", "true").lower() == "true"
 ADMIN_POLICY_ARN_SUFFIX = "/AdministratorAccess"
 
+# What this run could not read. Reset per invocation; a non-empty list means
+# a clean result is not proof that nothing is over-permissioned.
+_gaps = []
+
+
+def _record_gap(message, *args):
+    logger.exception(message, *args)
+    _gaps.append(message % args)
+
 
 def _notify(subject, message):
     if not SNS_TOPIC_ARN:
@@ -212,9 +221,10 @@ def _evaluate_role(role_name):
     findings = []
 
     try:
-        attached = iam.list_attached_role_policies(RoleName=role_name).get("AttachedPolicies", [])
+        paginator = iam.get_paginator("list_attached_role_policies")
+        attached = [p for page in paginator.paginate(RoleName=role_name) for p in page.get("AttachedPolicies", [])]
     except ClientError:
-        logger.exception("Failed to list attached policies for role %s", role_name)
+        _record_gap("Failed to list attached policies for role %s", role_name)
         attached = []
 
     for policy in attached:
@@ -233,12 +243,13 @@ def _evaluate_role(role_name):
             doc = iam.get_policy_version(PolicyArn=policy_arn, VersionId=version_id)["PolicyVersion"]["Document"]
             _evaluate_policy_document(doc, f"managed policy {policy['PolicyName']}", findings)
         except ClientError:
-            logger.exception("Failed to evaluate managed policy %s for role %s", policy.get("PolicyName"), role_name)
+            _record_gap("Failed to evaluate managed policy %s for role %s", policy.get("PolicyName"), role_name)
 
     try:
-        inline_names = iam.list_role_policies(RoleName=role_name).get("PolicyNames", [])
+        paginator = iam.get_paginator("list_role_policies")
+        inline_names = [n for page in paginator.paginate(RoleName=role_name) for n in page.get("PolicyNames", [])]
     except ClientError:
-        logger.exception("Failed to list inline policies for role %s", role_name)
+        _record_gap("Failed to list inline policies for role %s", role_name)
         inline_names = []
 
     for name in inline_names:
@@ -246,15 +257,18 @@ def _evaluate_role(role_name):
             doc = iam.get_role_policy(RoleName=role_name, PolicyName=name)["PolicyDocument"]
             _evaluate_policy_document(doc, f"inline policy {name}", findings)
         except ClientError:
-            logger.exception("Failed to evaluate inline policy %s for role %s", name, role_name)
+            _record_gap("Failed to evaluate inline policy %s for role %s", name, role_name)
 
     return findings
 
 
 def _iter_roles():
-    paginator = iam.get_paginator("list_roles")
-    for page in paginator.paginate():
-        yield from page.get("Roles", [])
+    try:
+        paginator = iam.get_paginator("list_roles")
+        for page in paginator.paginate():
+            yield from page.get("Roles", [])
+    except ClientError:
+        _record_gap("Failed to list IAM roles; roles on this and later pages were not audited")
 
 
 def _iter_bedrock_agents():
@@ -263,7 +277,7 @@ def _iter_bedrock_agents():
         for page in paginator.paginate():
             yield from page.get("agentSummaries", [])
     except ClientError:
-        logger.exception("Failed to list Bedrock Agents")
+        _record_gap("Failed to list Bedrock Agents")
 
 
 def _iter_action_group_lambda_arns(agent_id):
@@ -282,21 +296,21 @@ def _iter_action_group_lambda_arns(agent_id):
                         agentId=agent_id, agentVersion="DRAFT", actionGroupId=action_group_id
                     )["agentActionGroup"]
                 except ClientError:
-                    logger.exception("Failed to get action group %s for agent %s", action_group_id, agent_id)
+                    _record_gap("Failed to get action group %s for agent %s", action_group_id, agent_id)
                     continue
                 executor = detail.get("actionGroupExecutor", {})
                 lambda_arn = executor.get("lambda")
                 if lambda_arn:
                     yield summary.get("actionGroupName", action_group_id), lambda_arn
     except ClientError:
-        logger.exception("Failed to list action groups for agent %s", agent_id)
+        _record_gap("Failed to list action groups for agent %s", agent_id)
 
 
 def _role_name_from_lambda_arn(lambda_arn):
     try:
         role_arn = lambda_client.get_function(FunctionName=lambda_arn)["Configuration"]["Role"]
     except ClientError:
-        logger.exception("Failed to get function configuration for %s", lambda_arn)
+        _record_gap("Failed to get function configuration for %s", lambda_arn)
         return None
     # arn:partition:iam::account:role/name (or role/path/name)
     return role_arn.rsplit("/", 1)[-1]
@@ -322,6 +336,7 @@ def _iter_bedrock_agent_action_group_roles():
 
 def lambda_handler(event, context):
     logger.info("Starting AI/agent IAM privilege audit")
+    _gaps.clear()
     flagged_roles = []
     seen_role_names = set()
 
@@ -384,9 +399,24 @@ def lambda_handler(event, context):
     else:
         logger.info("No over-permissioned AI/agent roles found")
 
+    if _gaps:
+        _notify(
+            subject=f"AI agent IAM audit INCOMPLETE: {len(_gaps)} item(s) could not be read",
+            message=(
+                "The audit could not read the items below, so roles or policies may have been "
+                "skipped and a clean result is not proof of a clean account. Check the audit "
+                "role's permissions and the Lambda logs.\n\n" + "\n".join(f"- {g}" for g in _gaps)
+            ),
+        )
+
     return {
         "statusCode": 200,
         "body": json.dumps(
-            {"flagged_role_count": len(flagged_roles), "flagged_roles": [r["role_name"] for r in flagged_roles]}
+            {
+                "flagged_role_count": len(flagged_roles),
+                "flagged_roles": [r["role_name"] for r in flagged_roles],
+                "complete": not _gaps,
+                "gaps": list(_gaps),
+            }
         ),
     }

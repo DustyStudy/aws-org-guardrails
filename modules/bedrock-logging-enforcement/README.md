@@ -11,6 +11,9 @@ via SNS.
 2. The Lambda calls `bedrock:GetModelInvocationLoggingConfiguration` and
    compares it against the desired configuration (S3 bucket + CloudWatch
    Logs group, both created by this module).
+   Drift covers the delivery flags and every destination field: S3
+   bucket and key prefix, CloudWatch log group and role, the large-data
+   bucket, and any destination that was added.
 3. If logging is disabled or drifted, the Lambda calls
    `bedrock:PutModelInvocationLoggingConfiguration` to restore it and
    publishes a summary to SNS.

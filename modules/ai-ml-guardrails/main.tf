@@ -91,16 +91,28 @@ locals {
     Version = "2012-10-17"
     Statement = [
       {
+        # Both settings default to Enabled when the request leaves them out,
+        # so Create must set them to Disabled explicitly (a missing key makes
+        # StringNotEquals true). UpdateNotebookInstance cannot change
+        # DirectInternetAccess, so only Create is in scope for it.
         Sid       = "DenySageMakerDirectInternetAccess"
         Effect    = "Deny"
-        Action    = ["sagemaker:CreateNotebookInstance", "sagemaker:UpdateNotebookInstance"]
+        Action    = "sagemaker:CreateNotebookInstance"
         Resource  = "*"
-        Condition = { StringEquals = { "sagemaker:DirectInternetAccess" = "Enabled" } }
+        Condition = { StringNotEquals = { "sagemaker:DirectInternetAccess" = "Disabled" } }
       },
       {
         Sid       = "DenySageMakerRootAccess"
         Effect    = "Deny"
-        Action    = ["sagemaker:CreateNotebookInstance", "sagemaker:UpdateNotebookInstance"]
+        Action    = "sagemaker:CreateNotebookInstance"
+        Resource  = "*"
+        Condition = { StringNotEquals = { "sagemaker:RootAccess" = "Disabled" } }
+      },
+      {
+        # An update that leaves RootAccess out keeps the current value.
+        Sid       = "DenySageMakerRootAccessOnUpdate"
+        Effect    = "Deny"
+        Action    = "sagemaker:UpdateNotebookInstance"
         Resource  = "*"
         Condition = { StringEquals = { "sagemaker:RootAccess" = "Enabled" } }
       },

@@ -18,15 +18,32 @@ def _role(name, *services):
     }
 
 
+def _pages(policies):
+    return policies if policies and isinstance(policies[0], list) else [policies]
+
+
 @pytest.fixture
 def make_fn(load_lambda):
     def _make(roles, attached=None, inline=None, agents=(), **env):
         module = load_lambda(LAMBDA, SNS_TOPIC_ARN="arn:aws:sns:us-east-1:123456789012:alerts", **env)
         attached, inline = attached or {}, inline or {}
         iam = MagicMock()
-        iam.get_paginator.return_value.paginate.return_value = [{"Roles": roles}]
-        iam.list_attached_role_policies.side_effect = lambda RoleName: {"AttachedPolicies": attached.get(RoleName, [])}
-        iam.list_role_policies.side_effect = lambda RoleName: {"PolicyNames": list(inline.get(RoleName, {}))}
+        # attached[role] may be a list of policies or, to test paging, a
+        # list of pages (each a list of policies).
+        iam_pages = {
+            "list_roles": lambda: [{"Roles": roles}],
+            "list_attached_role_policies": lambda RoleName: [
+                {"AttachedPolicies": page} for page in _pages(attached.get(RoleName, []))
+            ],
+            "list_role_policies": lambda RoleName: [{"PolicyNames": list(inline.get(RoleName, {}))}],
+        }
+
+        def iam_paginator(name):
+            paginator = MagicMock()
+            paginator.paginate.side_effect = iam_pages[name]
+            return paginator
+
+        iam.get_paginator.side_effect = iam_paginator
         iam.get_role_policy.side_effect = lambda RoleName, PolicyName: {"PolicyDocument": inline[RoleName][PolicyName]}
         iam.get_role.side_effect = lambda RoleName: {"Role": {"Arn": f"arn:aws:iam::123456789012:role/{RoleName}"}}
 
@@ -90,6 +107,60 @@ def test_non_ai_role_is_ignored_even_if_admin(make_fn):
     )
 
     assert _flagged(fn) == []
+    fn.sns.publish.assert_not_called()
+
+
+def test_attached_policies_on_a_later_page_are_audited(make_fn):
+    admin = {"PolicyName": "AdministratorAccess", "PolicyArn": "arn:aws:iam::aws:policy/AdministratorAccess"}
+    fn = make_fn([_role("agent", "bedrock.amazonaws.com")], attached={"agent": [[], [admin]]})
+
+    assert _flagged(fn) == ["agent"]
+
+
+def test_a_read_failure_marks_the_audit_incomplete(make_fn):
+    from botocore.exceptions import ClientError
+
+    fn = make_fn([_role("agent", "bedrock.amazonaws.com")])
+    denied = ClientError({"Error": {"Code": "AccessDenied", "Message": "no"}}, "ListRolePolicies")
+    real = fn.iam.get_paginator.side_effect
+
+    def failing(name):
+        paginator = real(name)
+        if name == "list_role_policies":
+            paginator.paginate.side_effect = denied
+        return paginator
+
+    fn.iam.get_paginator.side_effect = failing
+    body = json.loads(fn.lambda_handler({}, None)["body"])
+
+    assert body["flagged_roles"] == []
+    assert body["complete"] is False
+    assert "INCOMPLETE" in fn.sns.publish.call_args.kwargs["Subject"]
+
+
+def test_a_role_listing_failure_marks_the_audit_incomplete(make_fn):
+    from botocore.exceptions import ClientError
+
+    fn = make_fn([])
+    real = fn.iam.get_paginator.side_effect
+
+    def failing(name):
+        paginator = real(name)
+        if name == "list_roles":
+            paginator.paginate.side_effect = ClientError({"Error": {"Code": "AccessDenied"}}, "ListRoles")
+        return paginator
+
+    fn.iam.get_paginator.side_effect = failing
+    body = json.loads(fn.lambda_handler({}, None)["body"])
+
+    assert body["complete"] is False
+    assert "INCOMPLETE" in fn.sns.publish.call_args.kwargs["Subject"]
+
+
+def test_a_clean_run_is_marked_complete(make_fn):
+    fn = make_fn([_role("agent", "bedrock.amazonaws.com")])
+
+    assert json.loads(fn.lambda_handler({}, None)["body"])["complete"] is True
     fn.sns.publish.assert_not_called()
 
 

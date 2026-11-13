@@ -69,6 +69,53 @@ def test_logging_to_another_bucket_counts_as_drift(make_fn):
     fn.bedrock.put_model_invocation_logging_configuration.assert_called_once()
 
 
+@pytest.mark.parametrize(
+    "drifted",
+    [
+        {"s3Config": {"bucketName": "invocation-logs", "keyPrefix": "elsewhere/"}},
+        # An extra destination sends prompts somewhere unmanaged.
+        {"cloudWatchConfig": {"logGroupName": "/x", "roleArn": "arn:aws:iam::444455556666:role/x"}},
+    ],
+)
+def test_changed_prefix_or_added_destination_counts_as_drift(make_fn, drifted):
+    fn = make_fn(current={**COMPLIANT, **drifted})
+
+    fn.lambda_handler({}, None)
+
+    fn.bedrock.put_model_invocation_logging_configuration.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "cloudwatch",
+    [
+        {"logGroupName": "/bedrock/invocations", "roleArn": "arn:aws:iam::123456789012:role/other"},
+        {
+            "logGroupName": "/bedrock/invocations",
+            "roleArn": "arn:aws:iam::123456789012:role/bedrock-logs",
+            "largeDataDeliveryS3Config": {"bucketName": "outside-bucket"},
+        },
+    ],
+)
+def test_changed_cloudwatch_role_or_large_data_bucket_counts_as_drift(make_fn, cloudwatch):
+    fn = make_fn(
+        current={**COMPLIANT, "cloudWatchConfig": cloudwatch},
+        CLOUDWATCH_LOG_GROUP="/bedrock/invocations",
+        CLOUDWATCH_ROLE_ARN="arn:aws:iam::123456789012:role/bedrock-logs",
+    )
+
+    fn.lambda_handler({}, None)
+
+    fn.bedrock.put_model_invocation_logging_configuration.assert_called_once()
+
+
+def test_missing_key_prefix_matches_an_empty_one(make_fn):
+    fn = make_fn(current={**COMPLIANT, "s3Config": {"bucketName": "invocation-logs"}})
+
+    fn.lambda_handler({}, None)
+
+    fn.bedrock.put_model_invocation_logging_configuration.assert_not_called()
+
+
 def test_cloudwatch_destination_is_included(make_fn):
     fn = make_fn(
         not_found=True,

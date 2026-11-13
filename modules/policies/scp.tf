@@ -311,11 +311,18 @@ locals {
       }
     },
     {
-      Sid       = "DenyImdsDowngrade"
-      Effect    = "Deny"
-      Action    = ["ec2:ModifyInstanceMetadataOptions"]
-      Resource  = "*"
-      Condition = local.exempt
+      # Lets a change through only when it requests HttpTokens=required, so
+      # teams can still move old instances to IMDSv2. ec2:Attribute/<name>
+      # carries the requested value (ec2:MetadataHttpTokens describes the
+      # instance). A request without HttpTokens lacks the key and is denied,
+      # so callers pass HttpTokens=required with every change.
+      Sid      = "DenyImdsDowngrade"
+      Effect   = "Deny"
+      Action   = ["ec2:ModifyInstanceMetadataOptions"]
+      Resource = "*"
+      Condition = merge(local.exempt, {
+        StringNotEquals = { "ec2:Attribute/HttpTokens" = "required" }
+      })
     },
     {
       # RAM shares stay inside the organization. Sharing with the
@@ -344,7 +351,7 @@ locals {
       # containers out; host-networked containers and processes on the host
       # still reach IMDS. NumericNotEquals is true when the key is missing,
       # so callers must set the hop limit, as with RequireImdsV2OnLaunch.
-      # DenyImdsDowngrade already stops raising it after launch. Launches by
+      # RequireImdsHopLimitOneOnModify stops raising it after launch. Launches by
       # service-linked roles (Auto Scaling, EKS managed node groups) are
       # outside SCPs, so this neither breaks nor covers them.
       Sid      = "RequireImdsHopLimitOne"
@@ -353,6 +360,18 @@ locals {
       Resource = "arn:${local.p}:ec2:*:*:instance/*"
       Condition = merge(local.exempt, {
         NumericNotEquals = { "ec2:MetadataHttpPutResponseHopLimit" = "1" }
+      })
+    },
+    {
+      # DenyImdsDowngrade allows metadata changes that keep IMDSv2, which
+      # could raise the hop limit. With this opt-in every change must also
+      # pass HttpPutResponseHopLimit=1.
+      Sid      = "RequireImdsHopLimitOneOnModify"
+      Effect   = "Deny"
+      Action   = ["ec2:ModifyInstanceMetadataOptions"]
+      Resource = "*"
+      Condition = merge(local.exempt, {
+        NumericNotEquals = { "ec2:Attribute/HttpPutResponseHopLimit" = "1" }
       })
     },
     ] : [], var.deny_athena_results_bucket_outside_org ? [
@@ -424,18 +443,31 @@ locals {
   # are served from a single region (us-east-1 in the commercial partition),
   # so a region deny without this carve-out would break IAM, Organizations,
   # Route 53, CloudFront, Support and billing for everyone.
+  # acm is regional, but CloudFront only takes certificates from us-east-1,
+  # so it is carved out as in AWS's own example. billing, payments, tax,
+  # invoicing and freetier replaced aws-portal; User Notifications'
+  # control plane (notifications, notifications-contacts) and ecr-public
+  # are served from us-east-1 only.
   global_service_actions = [
     "account:*",
+    "acm:*",
     "aws-portal:*",
+    "billing:*",
     "budgets:*",
     "ce:*",
     "cloudfront:*",
     "cur:*",
     "ec2:DescribeRegions",
+    "ecr-public:*",
+    "freetier:*",
     "globalaccelerator:*",
     "health:*",
     "iam:*",
+    "invoicing:*",
+    "notifications:*",
+    "notifications-contacts:*",
     "organizations:*",
+    "payments:*",
     "pricing:*",
     "route53:*",
     "route53domains:*",
@@ -444,6 +476,7 @@ locals {
     "shield:*",
     "sts:*",
     "support:*",
+    "tax:*",
     "trustedadvisor:*",
     "waf:*",
     "wafv2:*",

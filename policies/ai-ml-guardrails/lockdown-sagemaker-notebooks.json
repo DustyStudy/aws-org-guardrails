@@ -4,24 +4,29 @@
     {
       "Sid": "DenySageMakerDirectInternetAccess",
       "Effect": "Deny",
-      "Action": [
-        "sagemaker:CreateNotebookInstance",
-        "sagemaker:UpdateNotebookInstance"
-      ],
+      "Action": "sagemaker:CreateNotebookInstance",
       "Resource": "*",
       "Condition": {
-        "StringEquals": {
-          "sagemaker:DirectInternetAccess": "Enabled"
+        "StringNotEquals": {
+          "sagemaker:DirectInternetAccess": "Disabled"
         }
       }
     },
     {
       "Sid": "DenySageMakerRootAccess",
       "Effect": "Deny",
-      "Action": [
-        "sagemaker:CreateNotebookInstance",
-        "sagemaker:UpdateNotebookInstance"
-      ],
+      "Action": "sagemaker:CreateNotebookInstance",
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "sagemaker:RootAccess": "Disabled"
+        }
+      }
+    },
+    {
+      "Sid": "DenySageMakerRootAccessOnUpdate",
+      "Effect": "Deny",
+      "Action": "sagemaker:UpdateNotebookInstance",
       "Resource": "*",
       "Condition": {
         "StringEquals": {
