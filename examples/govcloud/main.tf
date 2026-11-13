@@ -14,13 +14,16 @@ terraform {
   }
 }
 
+# FIPS 140 validated endpoints, required for most GovCloud workloads.
 provider "aws" {
-  region = "us-gov-west-1"
+  region            = "us-gov-west-1"
+  use_fips_endpoint = true
 }
 
 provider "aws" {
-  alias  = "workload"
-  region = "us-gov-west-1"
+  alias             = "workload"
+  region            = "us-gov-west-1"
+  use_fips_endpoint = true
 
   assume_role {
     role_arn = "arn:aws-us-gov:iam::${var.workload_account_id}:role/OrganizationAccountAccessRole"

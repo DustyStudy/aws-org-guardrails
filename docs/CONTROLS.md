@@ -4,6 +4,21 @@ How each guardrail supports a NIST SP 800-53 Rev5 control. A guardrail is
 technical enforcement for part of a control. None of them satisfies a
 control on its own; each control also needs policy, procedure and evidence.
 
+Each guardrail is one of three kinds, and evidence for a control should say
+which:
+
+- **Prevent:** the request is denied before anything changes. The SCP
+  bundles, the permissions boundary, `identity-center` and
+  `ai-ml-guardrails`.
+- **Detect:** something already in place is reported, and nothing is
+  changed. `ai-agent-iam-auditor` and `bedrock-cost-guardrails`.
+- **Remediate:** a change is detected after the fact and undone.
+  `bedrock-logging-enforcement` restores the logging configuration on a
+  schedule, so logging can be off until the next run.
+  `sagemaker-notebook-exposure` stops an exposed notebook and disables root
+  access, but direct internet access cannot be changed in place, so those
+  notebooks are kept stopped until someone recreates them.
+
 | Control | Guardrail | Where |
 |---------|-----------|-------|
 | AC-2 Account Management | No IAM users, access keys or console passwords outside exempt roles; people sign in through Identity Center groups | `core/DenyIamUserCredentials`, `identity-center` |

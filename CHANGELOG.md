@@ -220,6 +220,26 @@ uses [Semantic Versioning](https://semver.org/).
   just the bucket and log group names. An outside destination added
   alongside the managed one was previously reported compliant.
 
+- `security-services`: `ProtectAuditLogging` also denies deleting,
+  stopping or changing CloudTrail Lake event data stores, changing
+  CloudTrail Insights, and deleting Config aggregators.
+  `ProtectThreatDetection` also denies removing or unmonitoring GuardDuty
+  and Security Hub members and deleting GuardDuty publishing destinations.
+  Exempt roles keep all of it; a delegated administrator that manages
+  membership needs its role exempted.
+- `scp-baseline`: new `max_scps_per_target` (5 or 10, default 5). AWS
+  raised the per-target SCP quota to 10 and the size limit to 10,240
+  characters in May 2026. The bundles still keep to the old
+  5,120-character limit, and the default stays 5, as a deliberate
+  compatibility choice; the docs no longer present 5 and 5,120 as the
+  current AWS limits.
+- `examples/govcloud`: providers set `use_fips_endpoint = true`.
+- Docs: `docs/CONTROLS.md` labels each guardrail as prevent, detect or
+  remediate and states the remediation limits; the README no longer says
+  `sagemaker-notebook-exposure` fully locks down notebooks.
+- `policies` comments: dated threat citations moved out of `scp.tf`; the
+  sources stay in this changelog.
+
 ## [0.3.0] - 2026-10-06
 
 ### Added

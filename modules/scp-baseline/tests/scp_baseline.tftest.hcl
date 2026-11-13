@@ -95,6 +95,15 @@ run "refuses_to_exceed_five_scps_per_target" {
   expect_failures = [aws_organizations_policy.this]
 }
 
+run "higher_quota_allows_more_scps_per_target" {
+  command = plan
+
+  variables {
+    other_scps_per_target = 2
+    max_scps_per_target   = 10
+  }
+}
+
 run "rejects_unknown_bundle_names" {
   command = plan
 

@@ -13,7 +13,8 @@ The partition comes from the provider, so the same call works in GovCloud.
 | `target_ids` | (required) | Root, OU or account IDs to attach the bundles to. |
 | `exempt_principal_arns` | (required) | Break-glass and security pipeline role ARN patterns. At least one. |
 | `enabled_bundles` | all | Subset of `core`, `security-services`, `data-and-compute`, `region-restriction`. |
-| `other_scps_per_target` | `1` | SCPs already attached to each target (FullAWSAccess counts). The plan fails if the total would exceed 5. |
+| `other_scps_per_target` | `1` | SCPs already attached to each target (FullAWSAccess counts). The plan fails if the total would exceed `max_scps_per_target`. |
+| `max_scps_per_target` | `5` | Per-target SCP limit the plan enforces: 5 (the pre-May 2026 quota, kept as a conservative default) or 10 (AWS's current quota). |
 | `allowed_regions` | `["us-east-1", "us-west-2"]` | Passed to `policies`. |
 | `enable_region_restriction` | `true` | Passed to `policies`. |
 | `deny_iam_user_credentials` | `true` | Passed to `policies`. |

@@ -14,8 +14,9 @@ BREAKGLASS = f"arn:aws:iam::{ACCOUNT}:role/security-breakglass"
 PIPELINE = f"arn:aws:iam::{ACCOUNT}:role/security-pipeline"
 ROOT = f"arn:aws:iam::{ACCOUNT}:root"
 
-# AWS limits (Organizations quotas): characters per SCP, and SCPs attached
-# directly to one target. One of those slots normally holds FullAWSAccess.
+# The pre-May-2026 AWS limits (characters per SCP, SCPs attached directly to
+# one target), kept on purpose as a compatibility margin. One slot
+# normally holds FullAWSAccess.
 SCP_MAX_CHARS = 5120
 SCP_MAX_PER_TARGET = 5
 
@@ -214,6 +215,14 @@ def test_pipeline_can_maintain_protected_roles(commercial):
         "guardduty:CreateFilter",
         "securityhub:DisableSecurityHub",
         "access-analyzer:DeleteAnalyzer",
+        # CloudTrail Lake, aggregators and the administrator's member list.
+        "cloudtrail:StopEventDataStoreIngestion",
+        "cloudtrail:DeleteEventDataStore",
+        "config:DeleteConfigurationAggregator",
+        "guardduty:DisassociateMembers",
+        "guardduty:StopMonitoringMembers",
+        "guardduty:DeletePublishingDestination",
+        "securityhub:DisassociateMembers",
     ],
 )
 def test_workloads_cannot_blind_security_tooling(commercial, action):

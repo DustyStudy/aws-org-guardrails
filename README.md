@@ -43,7 +43,7 @@ flowchart TB
   TESTS["Tests on the rendered JSON<br/>pytest behavior tests (iam_eval.py)<br/>IAM Access Analyzer"]
   SCP --> TESTS
   PB --> TESTS
-  SCP --> SB["modules/scp-baseline<br/>attaches bundles, max 5 SCPs per target"]
+  SCP --> SB["modules/scp-baseline<br/>attaches bundles, checks SCPs per target"]
   PB --> PBM["modules/permission-boundary<br/>creates the policy in a member account"]
   PB --> IC["modules/identity-center<br/>permission sets must carry the boundary"]
   subgraph org["AWS Organization"]
@@ -64,13 +64,13 @@ attached.
 | Module | What it does |
 |--------|--------------|
 | [`policies`](modules/policies) | Renders the SCP bundles and the permissions boundary as JSON. No provider and no resources, so it can be tested offline. |
-| [`scp-baseline`](modules/scp-baseline) | Creates the SCP bundles and attaches them to roots, OUs or accounts. Refuses to plan past the AWS limit of 5 SCPs per target. |
+| [`scp-baseline`](modules/scp-baseline) | Creates the SCP bundles and attaches them to roots, OUs or accounts. Refuses to plan past the per-target SCP quota (5 by default; set `max_scps_per_target = 10` for AWS's current quota). |
 | [`permission-boundary`](modules/permission-boundary) | Creates the boundary policy in a member account. |
 | [`identity-center`](modules/identity-center) | Permission sets, policy attachments, boundaries and group assignments. Refuses a permission set with no boundary unless it is explicitly exempted. |
 
 ## What the guardrails enforce
 
-Four SCP bundles, so FullAWSAccess still fits in the 5-per-target limit.
+Four SCP bundles, so FullAWSAccess still fits in the original 5-per-target limit, and each stays under the original 5,120 characters. AWS raised both limits (10 and 10,240) in May 2026; the bundles keep to the old ones on purpose.
 Every statement is a Deny. Most carry an exemption for a short list of roles
 (break-glass and the security pipeline) so the owners can still repair what
 the guardrail protects.
@@ -85,8 +85,8 @@ the guardrail protects.
 | | Deny creating IAM users, access keys and console passwords (optional) | Yes |
 | | Deny creating or resetting service-specific credentials: Bedrock API keys, CodeCommit Git credentials, Keyspaces passwords (optional, off by default) | Yes |
 | | Deny every Amazon SES action to IAM users (optional, off by default; listed SMTP users keep it) | Own user list |
-| `security-services` | Deny stopping or changing CloudTrail and AWS Config recording | Yes |
-| | Deny disabling GuardDuty (including suppression filters), Security Hub and Access Analyzer | Yes |
+| `security-services` | Deny stopping or changing CloudTrail trails, CloudTrail Lake event data stores, Insights, and AWS Config recording and aggregators | Yes |
+| | Deny disabling GuardDuty (including suppression filters, publishing destinations and member monitoring), Security Hub (including members) and Access Analyzer | Yes |
 | `data-and-compute` | Deny disabling EBS encryption by default | Yes |
 | | Deny changing the account-level S3 Block Public Access | Yes |
 | | Deny launching instances without IMDSv2 | No |
@@ -216,7 +216,7 @@ separate reference deployment and is not shown.
 | [`bedrock-logging-enforcement`](modules/bedrock-logging-enforcement) | Auto-remediation | Re-enables Bedrock invocation logging if it's disabled |
 | [`ai-agent-iam-auditor`](modules/ai-agent-iam-auditor) | Detective | Flags over-permissioned IAM roles trusted by AI services (including Bedrock AgentCore) or behind Bedrock Agent action groups |
 | [`bedrock-cost-guardrails`](modules/bedrock-cost-guardrails) | Detective | Budget ceiling and anomaly detection on Bedrock spend |
-| [`sagemaker-notebook-exposure`](modules/sagemaker-notebook-exposure) | Auto-remediation | Locks down SageMaker notebooks with internet or root access enabled |
+| [`sagemaker-notebook-exposure`](modules/sagemaker-notebook-exposure) | Auto-remediation (partial) | Stops SageMaker notebooks with internet or root access enabled and disables root access; a notebook with direct internet access is kept stopped and flagged for recreation, since that setting cannot be changed in place |
 | [`claude-apps-gateway`](modules/claude-apps-gateway) | Reference | Deployment reference for the Claude apps gateway on AWS |
 
 Each module's README covers its inputs and deployment. The standalone SCP
