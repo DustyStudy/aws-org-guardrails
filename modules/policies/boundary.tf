@@ -21,6 +21,8 @@ locals {
   boundary_arn           = "arn:${local.p}:iam::*:${local.boundary_path_and_name}"
   boundary_condition_arn = "arn:${local.p}:iam::$${aws:PrincipalAccount}:${local.boundary_path_and_name}"
   delegated_arn          = "arn:${local.p}:iam::*:role${var.delegated_role_path}*"
+  delegated_user_arn     = "arn:${local.p}:iam::*:user${var.delegated_role_path}*"
+  delegated_policy_arn   = "arn:${local.p}:iam::*:policy${var.delegated_role_path}*"
   slr_arns = [
     for service in var.service_linked_role_services :
     "arn:${local.p}:iam::*:role/aws-service-role/${service}/*"
@@ -102,6 +104,64 @@ locals {
         "iam:UpdateAssumeRolePolicy",
       ]
       NotResource = local.delegated_arn
+    },
+    {
+      # Without this, a bounded principal could hand itself the rights of an
+      # existing IAM user that has no boundary: attach a policy to it, mint
+      # its access keys or console password, or move it into the delegated
+      # path with UpdateUser (authorized against its current path).
+      Sid    = "DenyUserChangesOutsideDelegatedPath"
+      Effect = "Deny"
+      Action = [
+        "iam:AttachUserPolicy",
+        "iam:CreateAccessKey",
+        "iam:CreateLoginProfile",
+        "iam:CreateServiceSpecificCredential",
+        "iam:CreateUser",
+        "iam:DeactivateMFADevice",
+        "iam:DeleteUser",
+        "iam:DeleteUserPolicy",
+        "iam:DetachUserPolicy",
+        "iam:PutUserPolicy",
+        "iam:ResetServiceSpecificCredential",
+        "iam:UpdateAccessKey",
+        "iam:UpdateLoginProfile",
+        "iam:UpdateUser",
+        "iam:UploadSSHPublicKey",
+        "iam:UploadSigningCertificate",
+      ]
+      NotResource = local.delegated_user_arn
+    },
+    {
+      # Group changes are authorized against the group only, so a path
+      # check cannot stop an unbounded user being added to a group the
+      # principal then grants anything. Group administration stays with
+      # the platform team.
+      Sid    = "DenyGroupChanges"
+      Effect = "Deny"
+      Action = [
+        "iam:AddUserToGroup",
+        "iam:AttachGroupPolicy",
+        "iam:CreateGroup",
+        "iam:DeleteGroupPolicy",
+        "iam:DetachGroupPolicy",
+        "iam:PutGroupPolicy",
+        "iam:UpdateGroup",
+      ]
+      Resource = "*"
+    },
+    {
+      # A new default version of a customer managed policy changes every
+      # role, user and group it is attached to, including admin roles.
+      Sid    = "DenyPolicyChangesOutsideDelegatedPath"
+      Effect = "Deny"
+      Action = [
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicy",
+        "iam:DeletePolicyVersion",
+        "iam:SetDefaultPolicyVersion",
+      ]
+      NotResource = local.delegated_policy_arn
     },
     {
       Sid      = "DenyOrganizationAndAccountSettings"

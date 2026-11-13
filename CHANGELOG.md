@@ -164,6 +164,34 @@ uses [Semantic Versioning](https://semver.org/).
   Brotli, and it checks new builds, not images already pushed; redeploy
   under a new tag to replace a running task. NIST SP 800-53 Rev5: SI-2, RA-5.
 
+- `core/DenyRootUser` no longer denies centralized root access sessions
+  (`sts:AssumeRoot`). They carry the root ARN too, so the documented way
+  to do root tasks in member accounts was blocked. The deny now applies
+  only when `aws:AssumedRoot` is absent.
+- `core/DenyProtectedPolicyChanges` (new): denies creating, versioning or
+  deleting customer managed policies named with a protected prefix (on any
+  IAM path), so a policy attached to a protected role cannot be rewritten
+  to change that role. Name such policies with a
+  `protected_role_name_prefixes` prefix.
+- Permissions boundary: escalation paths closed. Bounded principals can no
+  longer attach or put policies on, move (`UpdateUser`), or mint access
+  keys, console passwords or service-specific credentials for IAM users
+  outside `delegated_role_path`; can no longer create, set or delete
+  versions of customer managed policies outside that path; and can no
+  longer administer IAM groups at all, since group changes are authorized
+  against the group only and a delegated group could take in an unbounded
+  user. **Breaking:** bounded principals that manage users or policies
+  under other paths, or any groups, lose that access.
+- `sagemaker-notebook-exposure`: remediation passed `DirectInternetAccess`
+  to `UpdateNotebookInstance`, which has no such parameter, so it always
+  failed with a `ParamValidationError` after stopping the notebook. It now
+  disables `RootAccess` only and finishes on the next `Stopped` event, so
+  `auto_restart` no longer races the update. A notebook with direct
+  internet access keeps the pending tag and you are notified to recreate
+  it in a VPC. `InService` state changes are now handled, so a notebook
+  first seen while `Pending`, or restarted before it is recreated, is
+  stopped again.
+
 ## [0.3.0] - 2026-10-06
 
 ### Added

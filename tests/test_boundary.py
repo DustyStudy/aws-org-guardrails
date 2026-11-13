@@ -5,6 +5,8 @@ this?". The real effective permission is the intersection with the
 principal's identity policies, which only ever narrows these results.
 """
 
+import json
+
 import pytest
 
 from guardrails_tools.iam_eval import Decision, Request, evaluate
@@ -54,8 +56,44 @@ def test_boundary_cannot_be_removed(commercial, action):
 @pytest.mark.parametrize("action", ["iam:CreatePolicyVersion", "iam:SetDefaultPolicyVersion", "iam:DeletePolicy"])
 def test_boundary_policy_itself_cannot_be_edited(commercial, action):
     assert decide(commercial, action, BOUNDARY_ARN) is Decision.EXPLICIT_DENY
-    app_policy = f"arn:aws:iam::{ACCOUNT}:policy/app-policy"
+    app_policy = f"arn:aws:iam::{ACCOUNT}:policy/workload/app-policy"
     assert decide(commercial, action, app_policy) is Decision.ALLOW
+
+
+@pytest.mark.parametrize(
+    "action", ["iam:CreatePolicyVersion", "iam:SetDefaultPolicyVersion", "iam:DeletePolicyVersion"]
+)
+def test_policies_outside_the_delegated_path_cannot_be_rewritten(commercial, action):
+    # A new default version would change every admin role the policy is on.
+    admin_policy = f"arn:aws:iam::{ACCOUNT}:policy/AdminPolicy"
+    assert decide(commercial, action, admin_policy) is Decision.EXPLICIT_DENY
+
+
+@pytest.mark.parametrize(
+    "action",
+    [
+        "iam:AttachUserPolicy",
+        "iam:PutUserPolicy",
+        "iam:CreateAccessKey",
+        "iam:CreateLoginProfile",
+        "iam:UpdateLoginProfile",
+        "iam:CreateServiceSpecificCredential",
+        "iam:UpdateUser",
+    ],
+)
+def test_existing_users_outside_the_delegated_path_cannot_be_taken_over(commercial, action):
+    assert decide(commercial, action, f"arn:aws:iam::{ACCOUNT}:user/alice-admin") is Decision.EXPLICIT_DENY
+    assert decide(commercial, action, f"arn:aws:iam::{ACCOUNT}:user/workload/ci") is Decision.ALLOW
+
+
+@pytest.mark.parametrize(
+    "action", ["iam:AttachGroupPolicy", "iam:PutGroupPolicy", "iam:AddUserToGroup", "iam:UpdateGroup"]
+)
+def test_groups_cannot_be_changed_on_any_path(commercial, action):
+    # AddUserToGroup is authorized against the group only, so a delegated
+    # group could take in an unbounded user and then be granted anything.
+    assert decide(commercial, action, f"arn:aws:iam::{ACCOUNT}:group/Admins") is Decision.EXPLICIT_DENY
+    assert decide(commercial, action, f"arn:aws:iam::{ACCOUNT}:group/workload/devs") is Decision.EXPLICIT_DENY
 
 
 @pytest.mark.parametrize(
@@ -94,6 +132,12 @@ def test_govcloud_boundary_uses_govcloud_arns(govcloud):
 def test_service_linked_roles_only_for_listed_services(commercial, service, expected):
     arn = f"arn:aws:iam::{ACCOUNT}:role/aws-service-role/{service}/AWSServiceRole"
     assert decide(commercial, "iam:CreateServiceLinkedRole", arn) is expected
+
+
+def test_boundary_fits_the_managed_policy_size_limit(commercial, govcloud):
+    # IAM counts managed policy size without whitespace; the limit is 6,144.
+    for rendered in (commercial, govcloud):
+        assert len(json.dumps(rendered.boundary, separators=(",", ":"))) <= 6144
 
 
 def test_pass_role_is_not_granted_by_the_broad_allow(commercial):

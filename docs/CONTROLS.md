@@ -23,7 +23,7 @@ control on its own; each control also needs policy, procedure and evidence.
 | AC-12 Session Termination | Identity Center sessions default to 1 hour, capped at 12 | `identity-center` |
 | AU-9 Protection of Audit Information | CloudTrail trails and Config recorders cannot be stopped, deleted or reconfigured by workloads | `security-services/ProtectAuditLogging` |
 | AU-12 Audit Record Generation | Audit logging stays on in every account under the target OUs | `security-services/ProtectAuditLogging` |
-| CM-5 Access Restrictions for Change | Guardrail roles and the boundary policy are locked against change | `core/DenyProtectedRoleChanges`, `DenyBoundaryPolicyChanges` |
+| CM-5 Access Restrictions for Change | Guardrail roles, their prefix-named customer managed policies and the boundary policy are locked against change | `core/DenyProtectedRoleChanges`, `core/DenyProtectedPolicyChanges`, `DenyBoundaryPolicyChanges` |
 | CM-6 Configuration Settings | IMDSv2 required at launch and locked afterwards | `data-and-compute` |
 | CM-7 Least Functionality | Regional services limited to approved regions | `region-restriction` |
 | SC-7 Boundary Protection | Account-level S3 Block Public Access cannot be turned off | `data-and-compute/ProtectAccountPublicAccessBlock` |

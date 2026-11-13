@@ -79,6 +79,24 @@ def test_member_account_root_user_is_denied_everything(commercial, action):
     assert decide(commercial, req(action, ROOT)) is Decision.EXPLICIT_DENY
 
 
+def test_centralized_root_access_sessions_are_not_denied(commercial):
+    # sts:AssumeRoot sessions carry the root ARN plus aws:AssumedRoot.
+    request = req("s3:DeleteBucketPolicy", ROOT, **{"aws:AssumedRoot": "true"})
+    assert decide(commercial, request) is Decision.ALLOW
+
+
+def test_protected_customer_managed_policies_cannot_be_rewritten(commercial):
+    for policy in (
+        f"arn:aws:iam::{ACCOUNT}:policy/security-breakglass-admin",
+        f"arn:aws:iam::{ACCOUNT}:policy/platform/security-breakglass-admin",
+    ):
+        for action in ("iam:CreatePolicyVersion", "iam:SetDefaultPolicyVersion"):
+            assert decide(commercial, req(action, WORKLOAD, resource=policy)) is Decision.EXPLICIT_DENY
+            assert decide(commercial, req(action, BREAKGLASS, resource=policy)) is Decision.ALLOW
+    app_policy = f"arn:aws:iam::{ACCOUNT}:policy/workload/app-policy"
+    assert decide(commercial, req("iam:CreatePolicyVersion", WORKLOAD, resource=app_policy)) is Decision.ALLOW
+
+
 def test_root_deny_is_partition_specific(govcloud):
     # A GovCloud render must match GovCloud ARNs. A hard-coded arn:aws: would
     # silently never match there, which is the bug this test exists to catch.

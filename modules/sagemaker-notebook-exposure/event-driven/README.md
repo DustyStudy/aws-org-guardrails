@@ -1,13 +1,17 @@
 # sagemaker-notebook-exposure / event-driven (Terraform)
 
 Detects SageMaker notebook instances created or updated with **direct
-internet access** or **root access** enabled, and remediates them
-automatically.
+internet access** or **root access** enabled and stops them. Root access
+is then disabled automatically. Direct internet access cannot be changed on
+an existing notebook (`UpdateNotebookInstance` has no such parameter), so
+those notebooks keep the pending tag, are stopped again whenever they reach
+`InService`, and you are notified to recreate them in a VPC subnet with
+`DirectInternetAccess=Disabled`.
 
 ## Why this is two EventBridge rules, not one
 
-SageMaker only allows changing `DirectInternetAccess` or `RootAccess`
-while a notebook instance is **stopped**. Stopping a running instance
+SageMaker only allows changing `RootAccess` while a notebook instance is
+**stopped**. Stopping a running instance
 takes a couple of minutes — too long to block inside one Lambda
 invocation — so this is a two-phase flow, both handled by the same
 Lambda:
@@ -19,8 +23,12 @@ Lambda:
 2. **`notebook_state_change`** rule — matches SageMaker's own **native**
    "Notebook Instance State Change" event. When a notebook reaches
    `Stopped` and carries the pending tag, the Lambda disables
-   `DirectInternetAccess`/`RootAccess`, clears the tag, and (only if
-   `auto_restart = true`) starts it back up.
+   `RootAccess` and waits for the update to bring it back to `Stopped`.
+   If `DirectInternetAccess` is still enabled it keeps the tag and
+   notifies you to recreate the notebook. Otherwise it clears the tag and
+   (only if `auto_restart = true`) starts it back up. When a notebook
+   reaches `InService` (first seen while `Pending`, or restarted before
+   recreation), the Lambda checks and stops it as in step 1.
 
 By default the notebook is left **stopped** after remediation.
 

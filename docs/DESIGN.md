@@ -57,7 +57,9 @@ Three statements have no exemption on purpose:
 
 - `DenyLeaveOrganization`: no principal in a member account needs this.
 - `DenyRootUser`: root in member accounts is handled from the management
-  account (centralized root access), not from inside the account.
+  account (centralized root access), not from inside the account. Those
+  `sts:AssumeRoot` sessions also use the root ARN, so the statement applies
+  only when `aws:AssumedRoot` is absent.
 - `RequireImdsV2OnLaunch`: it has no legitimate exception.
 
 A test asserts that exactly these statements lack the exemption, so adding a

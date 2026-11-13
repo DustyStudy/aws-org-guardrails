@@ -72,6 +72,14 @@ locals {
   protected_role_arns = [
     for prefix in var.protected_role_name_prefixes : "arn:${local.p}:iam::*:role/${prefix}*"
   ]
+  # Policy names can sit under any path; the second pattern matches a name
+  # with the prefix in the last path segment, such as policy/team/security-x.
+  protected_policy_arns = flatten([
+    for prefix in var.protected_role_name_prefixes : [
+      "arn:${local.p}:iam::*:policy/${prefix}*",
+      "arn:${local.p}:iam::*:policy/*/${prefix}*",
+    ]
+  ])
 
   core_statements = concat(
     [
@@ -93,13 +101,16 @@ locals {
       {
         # SCPs do apply to a member account's root user. Root is needed only
         # for a short list of tasks, which the management account can do with
-        # centralized root access instead.
+        # centralized root access instead. Those sessions (sts:AssumeRoot)
+        # also carry the root ARN, so aws:AssumedRoot must be absent for the
+        # deny to apply; AssumeRoot is itself limited to a few task policies.
         Sid      = "DenyRootUser"
         Effect   = "Deny"
         Action   = ["*"]
         Resource = "*"
         Condition = {
           ArnLike = { "aws:PrincipalArn" = "arn:${local.p}:iam::*:root" }
+          Null    = { "aws:AssumedRoot" = "true" }
         }
       },
       {
@@ -125,6 +136,22 @@ locals {
           "iam:UntagRole",
         ]
         Resource  = local.protected_role_arns
+        Condition = local.exempt
+      },
+      {
+        # A customer managed policy attached to a protected role changes
+        # that role when its default version changes. Name such policies
+        # with a protected prefix so this statement covers them.
+        Sid    = "DenyProtectedPolicyChanges"
+        Effect = "Deny"
+        Action = [
+          "iam:CreatePolicy",
+          "iam:CreatePolicyVersion",
+          "iam:DeletePolicy",
+          "iam:DeletePolicyVersion",
+          "iam:SetDefaultPolicyVersion",
+        ]
+        Resource  = local.protected_policy_arns
         Condition = local.exempt
       },
     ],
