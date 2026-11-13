@@ -90,7 +90,8 @@ locals {
     },
     {
       # Roles outside the delegated path (admin roles, security tooling) can
-      # be neither changed nor handed to a service via PassRole.
+      # be neither changed nor handed to a service via PassRole. Swapping
+      # their boundary for this one would widen a stricter one.
       Sid    = "DenyRoleChangesOutsideDelegatedPath"
       Effect = "Deny"
       Action = [
@@ -100,6 +101,7 @@ locals {
         "iam:DeleteRolePolicy",
         "iam:DetachRolePolicy",
         "iam:PassRole",
+        "iam:PutRolePermissionsBoundary",
         "iam:PutRolePolicy",
         "iam:UpdateAssumeRolePolicy",
       ]
@@ -122,6 +124,7 @@ locals {
         "iam:DeleteUser",
         "iam:DeleteUserPolicy",
         "iam:DetachUserPolicy",
+        "iam:PutUserPermissionsBoundary",
         "iam:PutUserPolicy",
         "iam:ResetServiceSpecificCredential",
         "iam:UpdateAccessKey",
@@ -162,6 +165,23 @@ locals {
         "iam:SetDefaultPolicyVersion",
       ]
       NotResource = local.delegated_policy_arn
+    },
+    {
+      # Admin roles trust existing SAML and OIDC providers, so whoever can
+      # rewrite a provider's metadata, thumbprints or audiences can sign in
+      # as those roles. Providers have no path. Creating one stays open (EKS
+      # IRSA needs it); roles that trust it are still bounded.
+      Sid    = "DenyIdentityProviderChanges"
+      Effect = "Deny"
+      Action = [
+        "iam:AddClientIDToOpenIDConnectProvider",
+        "iam:DeleteOpenIDConnectProvider",
+        "iam:DeleteSAMLProvider",
+        "iam:RemoveClientIDFromOpenIDConnectProvider",
+        "iam:UpdateOpenIDConnectProviderThumbprint",
+        "iam:UpdateSAMLProvider",
+      ]
+      Resource = "*"
     },
     {
       Sid      = "DenyOrganizationAndAccountSettings"

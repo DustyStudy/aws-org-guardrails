@@ -36,14 +36,14 @@ which:
 | AC-6(5) Privileged Accounts | Member account root user denied; organization access role protected | `core/DenyRootUser`, `core/DenyProtectedRoleChanges` |
 | AC-6(10) Prohibit Non-privileged Users from Executing Privileged Functions | Delegated principals cannot change Organizations or account settings, remove boundaries or modify roles outside their path | permissions boundary |
 | AC-12 Session Termination | Identity Center sessions default to 1 hour, capped at 12 | `identity-center` |
-| AU-9 Protection of Audit Information | CloudTrail trails and Config recorders cannot be stopped, deleted or reconfigured by workloads | `security-services/ProtectAuditLogging` |
+| AU-9 Protection of Audit Information | CloudTrail trails, Config recorders, delivery channels and aggregators cannot be stopped, deleted or reconfigured by workloads | `security-services/ProtectAuditLogging` |
 | AU-12 Audit Record Generation | Audit logging stays on in every account under the target OUs | `security-services/ProtectAuditLogging` |
 | CM-5 Access Restrictions for Change | Guardrail roles, their prefix-named customer managed policies and the boundary policy are locked against change | `core/DenyProtectedRoleChanges`, `core/DenyProtectedPolicyChanges`, `DenyBoundaryPolicyChanges` |
 | CM-6 Configuration Settings | IMDSv2 required at launch and locked afterwards | `data-and-compute` |
 | CM-7 Least Functionality | Regional services limited to approved regions | `region-restriction` |
 | SC-7 Boundary Protection | Account-level S3 Block Public Access cannot be turned off | `data-and-compute/ProtectAccountPublicAccessBlock` |
 | SC-28 Protection of Information at Rest | EBS encryption by default cannot be disabled | `data-and-compute/ProtectEbsDefaultEncryption` |
-| SI-4 System Monitoring | GuardDuty, Security Hub and Access Analyzer cannot be disabled or muted with suppression filters | `security-services/ProtectThreatDetection` |
+| SI-4 System Monitoring | GuardDuty, Security Hub and Access Analyzer cannot be disabled or muted with suppression filters, trusted IP or entity lists, automation or archive rules, or per-control disables | `security-services/ProtectThreatDetection` |
 
 ## Not covered
 

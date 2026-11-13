@@ -120,7 +120,8 @@ locals {
         # CreateRole is included so nobody can create a role whose name
         # matches an exempt principal and inherit its exemption. The
         # policies module requires every exempt role to be covered by a
-        # protected prefix for the same reason.
+        # protected prefix for the same reason. PassRole is included because
+        # compute that runs as an exempt role inherits its exemption.
         Sid    = "DenyProtectedRoleChanges"
         Effect = "Deny"
         Action = [
@@ -130,6 +131,7 @@ locals {
           "iam:DeleteRolePermissionsBoundary",
           "iam:DeleteRolePolicy",
           "iam:DetachRolePolicy",
+          "iam:PassRole",
           "iam:PutRolePermissionsBoundary",
           "iam:PutRolePolicy",
           "iam:UpdateAssumeRolePolicy",
@@ -260,18 +262,28 @@ locals {
         "config:DeleteConfigurationAggregator",
         "config:DeleteConfigurationRecorder",
         "config:DeleteDeliveryChannel",
+        "config:PutConfigurationAggregator",
         "config:PutConfigurationRecorder",
+        "config:PutDeliveryChannel",
         "config:StopConfigurationRecorder",
       ]
       Resource  = "*"
       Condition = local.exempt
     },
     {
+      # Blinding a detector works as well as disabling it: trusted IP and
+      # entity lists, archive and automation rules suppress findings, and
+      # single controls can be turned off inside an enabled standard.
       Sid    = "ProtectThreatDetection"
       Effect = "Deny"
       Action = [
+        "access-analyzer:ApplyArchiveRule",
+        "access-analyzer:CreateArchiveRule",
         "access-analyzer:DeleteAnalyzer",
+        "access-analyzer:UpdateArchiveRule",
         "guardduty:CreateFilter",
+        "guardduty:CreateIPSet",
+        "guardduty:CreateTrustedEntitySet",
         "guardduty:DeleteDetector",
         "guardduty:DeleteMembers",
         "guardduty:DeletePublishingDestination",
@@ -281,12 +293,21 @@ locals {
         "guardduty:StopMonitoringMembers",
         "guardduty:UpdateDetector",
         "guardduty:UpdateFilter",
+        "guardduty:UpdateIPSet",
+        "guardduty:UpdateTrustedEntitySet",
         "securityhub:BatchDisableStandards",
+        "securityhub:BatchUpdateAutomationRules",
+        "securityhub:BatchUpdateStandardsControlAssociations",
+        "securityhub:CreateAutomationRule",
+        "securityhub:CreateAutomationRuleV2",
         "securityhub:DeleteMembers",
         "securityhub:DisableSecurityHub",
+        "securityhub:DisableSecurityHubV2",
         "securityhub:DisassociateFromAdministratorAccount",
         "securityhub:DisassociateFromMasterAccount",
         "securityhub:DisassociateMembers",
+        "securityhub:UpdateAutomationRuleV2",
+        "securityhub:UpdateStandardsControl",
       ]
       Resource  = "*"
       Condition = local.exempt

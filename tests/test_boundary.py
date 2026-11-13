@@ -105,9 +105,49 @@ def test_pass_role_is_limited_to_delegated_roles(commercial, role, expected):
 
 
 def test_admin_roles_cannot_be_modified(commercial):
-    for action in ("iam:AttachRolePolicy", "iam:PutRolePolicy", "iam:UpdateAssumeRolePolicy", "iam:DeleteRole"):
+    for action in (
+        "iam:AttachRolePolicy",
+        "iam:PutRolePolicy",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:DeleteRole",
+    ):
         assert decide(commercial, action, ADMIN_ROLE) is Decision.EXPLICIT_DENY
         assert decide(commercial, action, APP_ROLE) is Decision.ALLOW
+
+
+@pytest.mark.parametrize(
+    ("action", "kind"), [("iam:PutRolePermissionsBoundary", "role"), ("iam:PutUserPermissionsBoundary", "user")]
+)
+def test_boundary_of_principals_outside_the_delegated_path_cannot_be_replaced(commercial, action, kind):
+    # Even with this boundary: it would widen a stricter one already on an admin principal.
+    ctx = {"iam:PermissionsBoundary": BOUNDARY_ARN}
+    assert decide(commercial, action, f"arn:aws:iam::{ACCOUNT}:{kind}/Admin", **ctx) is Decision.EXPLICIT_DENY
+    assert decide(commercial, action, f"arn:aws:iam::{ACCOUNT}:{kind}/workload/app", **ctx) is Decision.ALLOW
+
+
+SAML_PROVIDER = f"arn:aws:iam::{ACCOUNT}:saml-provider/CorpIdP"
+OIDC_PROVIDER = f"arn:aws:iam::{ACCOUNT}:oidc-provider/token.actions.githubusercontent.com"
+
+
+@pytest.mark.parametrize(
+    ("action", "provider"),
+    [
+        ("iam:UpdateSAMLProvider", SAML_PROVIDER),
+        ("iam:DeleteSAMLProvider", SAML_PROVIDER),
+        ("iam:UpdateOpenIDConnectProviderThumbprint", OIDC_PROVIDER),
+        ("iam:AddClientIDToOpenIDConnectProvider", OIDC_PROVIDER),
+        ("iam:RemoveClientIDFromOpenIDConnectProvider", OIDC_PROVIDER),
+        ("iam:DeleteOpenIDConnectProvider", OIDC_PROVIDER),
+    ],
+)
+def test_identity_providers_admin_roles_trust_cannot_be_rewritten(commercial, action, provider):
+    assert decide(commercial, action, provider) is Decision.EXPLICIT_DENY
+
+
+def test_new_identity_providers_can_still_be_created(commercial):
+    # EKS IRSA creates an OIDC provider per cluster.
+    oidc = f"arn:aws:iam::{ACCOUNT}:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLE"
+    assert decide(commercial, "iam:CreateOpenIDConnectProvider", oidc) is Decision.ALLOW
 
 
 @pytest.mark.parametrize("action", ["organizations:DescribeOrganization", "account:PutAlternateContact"])
