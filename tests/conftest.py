@@ -56,10 +56,12 @@ def hop_locked() -> RenderedPolicies:
 
 @pytest.fixture(scope="session")
 def protection_locked() -> RenderedPolicies:
-    return render(extra_vars={
-        "deny_instance_protection_changes": True,
-        "instance_protection_exempt_principal_arns": ["arn:aws:iam::*:role/security-platform-deploy"],
-    })
+    return render(
+        extra_vars={
+            "deny_instance_protection_changes": True,
+            "instance_protection_exempt_principal_arns": ["arn:aws:iam::*:role/security-platform-deploy"],
+        }
+    )
 
 
 @pytest.fixture(scope="session")

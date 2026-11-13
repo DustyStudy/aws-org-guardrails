@@ -287,13 +287,16 @@ def test_instance_protection_stays_open_by_default(commercial):
     assert decide(commercial, _modify(**{"ec2:Attribute/DisableApiTermination": "true"})) is Decision.ALLOW
 
 
-@pytest.mark.parametrize("context", [
-    {"ec2:Attribute/DisableApiTermination": "true"},
-    {"ec2:Attribute/DisableApiTermination": "false"},
-    {"ec2:Attribute/DisableApiStop": "true"},
-    {"ec2:Attribute": "disableApiTermination"},
-    {"ec2:Attribute": "DisableApiStop"},
-])
+@pytest.mark.parametrize(
+    "context",
+    [
+        {"ec2:Attribute/DisableApiTermination": "true"},
+        {"ec2:Attribute/DisableApiTermination": "false"},
+        {"ec2:Attribute/DisableApiStop": "true"},
+        {"ec2:Attribute": "disableApiTermination"},
+        {"ec2:Attribute": "DisableApiStop"},
+    ],
+)
 def test_stolen_credentials_cannot_lock_or_unlock_an_instance(protection_locked, context):
     assert decide(protection_locked, _modify(**context)) is Decision.EXPLICIT_DENY
 
@@ -304,11 +307,14 @@ def test_exempt_and_listed_roles_can_change_instance_protection(protection_locke
     assert decide(protection_locked, request) is Decision.ALLOW
 
 
-@pytest.mark.parametrize("context", [
-    {"ec2:Attribute/InstanceType": "m7i.large"},
-    {"ec2:Attribute": "instanceType"},
-    {},
-])
+@pytest.mark.parametrize(
+    "context",
+    [
+        {"ec2:Attribute/InstanceType": "m7i.large"},
+        {"ec2:Attribute": "instanceType"},
+        {},
+    ],
+)
 def test_other_instance_attribute_changes_still_work(protection_locked, context):
     assert decide(protection_locked, _modify(**context)) is Decision.ALLOW
 
