@@ -77,17 +77,27 @@ def _get_current_config():
         raise
 
 
+def _destinations(config):
+    # Every field that decides where prompts and completions go. An added
+    # destination (an outside bucket, a large-data bucket) is drift too.
+    s3 = config.get("s3Config") or {}
+    cw = config.get("cloudWatchConfig") or {}
+    large = cw.get("largeDataDeliveryS3Config") or {}
+    return (
+        (s3.get("bucketName"), s3.get("keyPrefix") or "") if s3 else None,
+        (cw.get("logGroupName"), cw.get("roleArn"), large.get("bucketName"), large.get("keyPrefix") or "")
+        if cw
+        else None,
+    )
+
+
 def _is_compliant(current, desired):
     if not current:
         return False
     for flag in ("textDataDeliveryEnabled", "imageDataDeliveryEnabled", "embeddingDataDeliveryEnabled"):
         if bool(current.get(flag)) != desired[flag]:
             return False
-    if S3_BUCKET_NAME and current.get("s3Config", {}).get("bucketName") != S3_BUCKET_NAME:
-        return False
-    return not (
-        CLOUDWATCH_LOG_GROUP and current.get("cloudWatchConfig", {}).get("logGroupName") != CLOUDWATCH_LOG_GROUP
-    )
+    return _destinations(current) == _destinations(desired)
 
 
 def lambda_handler(event, context):

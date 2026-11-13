@@ -67,6 +67,11 @@ wildcard with the agent's own runtime, memory and secret ARNs.
 
 NIST SP 800-53 Rev5: AC-6, AC-6(1), AC-2(7), CA-7.
 
+If any IAM, Bedrock Agents or Lambda read fails, the run sends a separate
+"AI agent IAM audit INCOMPLETE" notification listing what it could not read,
+and the result has `"complete": false`. A run with no findings is only a
+clean bill of health when it is complete.
+
 Upgrade notes: the audit Lambda's role gains read access
 (`iam:GetPolicy`, `iam:GetPolicyVersion`) to the account's customer-managed
 policies, and the first run after upgrade can report roles it did not

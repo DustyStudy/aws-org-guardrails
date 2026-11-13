@@ -266,6 +266,34 @@ def test_containers_cannot_be_given_a_route_to_the_instance_role(hop_locked):
     assert decide(hop_locked, _launch()) is Decision.EXPLICIT_DENY
 
 
+def _modify_metadata(principal=WORKLOAD, **context):
+    instance = f"arn:aws:ec2:us-east-1:{ACCOUNT}:instance/i-0abc"
+    return req("ec2:ModifyInstanceMetadataOptions", principal, resource=instance, **context)
+
+
+def test_imds_can_be_upgraded_but_not_downgraded(commercial):
+    assert decide(commercial, _modify_metadata(**{"ec2:Attribute/HttpTokens": "required"})) is Decision.ALLOW
+    assert decide(commercial, _modify_metadata(**{"ec2:Attribute/HttpTokens": "optional"})) is Decision.EXPLICIT_DENY
+    # The instance's current setting is not the requested one.
+    downgrade = {"ec2:MetadataHttpTokens": "required", "ec2:Attribute/HttpTokens": "optional"}
+    assert decide(commercial, _modify_metadata(**downgrade)) is Decision.EXPLICIT_DENY
+    upgrade = {"ec2:MetadataHttpTokens": "optional", "ec2:Attribute/HttpTokens": "required"}
+    assert decide(commercial, _modify_metadata(**upgrade)) is Decision.ALLOW
+    # Without HttpTokens the request cannot show it keeps IMDSv2.
+    assert decide(commercial, _modify_metadata()) is Decision.EXPLICIT_DENY
+
+
+def test_hop_limit_cannot_be_raised_after_launch(hop_locked):
+    keep = {"ec2:Attribute/HttpTokens": "required"}
+    hop_one = _modify_metadata(**keep, **{"ec2:Attribute/HttpPutResponseHopLimit": "1"})
+    hop_two = _modify_metadata(
+        **keep, **{"ec2:MetadataHttpPutResponseHopLimit": "1", "ec2:Attribute/HttpPutResponseHopLimit": "2"}
+    )
+    assert decide(hop_locked, hop_one) is Decision.ALLOW
+    assert decide(hop_locked, hop_two) is Decision.EXPLICIT_DENY
+    assert decide(hop_locked, _modify_metadata(**keep)) is Decision.EXPLICIT_DENY
+
+
 def test_exempt_roles_can_launch_with_a_higher_hop_limit(hop_locked):
     hop_two = _launch(BREAKGLASS, **{"ec2:MetadataHttpPutResponseHopLimit": "2"})
     assert decide(hop_locked, hop_two) is Decision.ALLOW
@@ -487,6 +515,11 @@ def test_break_glass_can_still_share_externally(commercial):
         ("iam:CreateRole", "eu-west-1", Decision.ALLOW),
         ("sts:AssumeRole", "eu-west-1", Decision.ALLOW),
         ("support:CreateCase", "eu-west-1", Decision.ALLOW),
+        # CloudFront certificates live in us-east-1; billing moved off aws-portal.
+        ("acm:RequestCertificate", "eu-west-1", Decision.ALLOW),
+        ("billing:GetBillingPreferences", "eu-west-1", Decision.ALLOW),
+        ("ecr-public:CreateRepository", "eu-west-1", Decision.ALLOW),
+        ("notifications-contacts:CreateEmailContact", "eu-west-1", Decision.ALLOW),
     ],
 )
 def test_region_restriction(commercial, action, region, expected):

@@ -115,9 +115,19 @@ run "notebooks_need_vpc_no_internet_no_root" {
       ]) == toset([
       "DenySageMakerDirectInternetAccess",
       "DenySageMakerRootAccess",
+      "DenySageMakerRootAccessOnUpdate",
       "DenySageMakerNotebookWithoutVPC",
     ])
     error_message = "The notebook SCP must deny direct internet access, root access and notebooks outside a VPC."
+  }
+
+  assert {
+    condition = alltrue([
+      for s in jsondecode(aws_organizations_policy.this["lockdown-sagemaker-notebooks"].content).Statement :
+      s.Condition == { StringNotEquals = { (s.Sid == "DenySageMakerRootAccess" ? "sagemaker:RootAccess" : "sagemaker:DirectInternetAccess") = "Disabled" } }
+      if contains(["DenySageMakerDirectInternetAccess", "DenySageMakerRootAccess"], s.Sid)
+    ])
+    error_message = "Both settings default to Enabled when omitted, so Create must deny anything but an explicit Disabled."
   }
 
   assert {

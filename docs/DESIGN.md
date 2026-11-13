@@ -87,6 +87,12 @@ short and reviewable. The tests assert both sides: `ec2:RunInstances` in
 `eu-west-1` is denied, while `iam:CreateRole` and `sts:AssumeRole` from
 `eu-west-1` are allowed.
 
+Services pinned to us-east-1 are carved out too: ACM (CloudFront only takes
+certificates from us-east-1), User Notifications and its contacts, ECR Public, and the
+billing actions that replaced `aws-portal` (`billing`, `payments`, `tax`,
+`invoicing`, `freetier`). Carving out ACM also allows certificates in other
+regions, as AWS's own example does.
+
 IAM Identity Center is regional. If its home region is not in
 `allowed_regions`, add it, or administrators will be denied.
 

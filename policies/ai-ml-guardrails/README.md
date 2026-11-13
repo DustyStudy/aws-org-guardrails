@@ -99,7 +99,9 @@ instances. Use the standalone JSON, or deploy and attach it via
   misconfiguration: a notebook instance with `DirectInternetAccess`
   enabled sitting outside a VPC, reachable from the internet, often with
   root access too — effectively an unmanaged EC2 instance with AWS
-  credentials attached.
+  credentials attached. Both settings default to `Enabled` when a create
+  request leaves them out, so `CreateNotebookInstance` must pass
+  `DirectInternetAccess=Disabled` and `RootAccess=Disabled` explicitly.
 
 ## Using the raw JSON directly
 
