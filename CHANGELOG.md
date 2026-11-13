@@ -8,6 +8,20 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `data-and-compute` bundle: optional `DenyInstanceDisableApiTerminationChange`,
+  `DenyInstanceDisableApiStopChange` and `DenyInstanceProtectionAttributeChange`
+  statements (`deny_instance_protection_changes`, off by default). They deny
+  `ec2:ModifyInstanceAttribute` on an instance when the request changes
+  termination or stop protection, on or off, using `ec2:Attribute/<name>`
+  and, for the `Attribute=<name>` request form, `ec2:Attribute`. Exempt
+  roles and `instance_protection_exempt_principal_arns` keep it. Limits:
+  protection set at launch (`RunInstances`, launch templates) has no
+  condition key and is not covered, and how EC2 fills these keys for this
+  action is not yet confirmed by a live run. About 1,000 characters; adds no
+  SCP. Threat: attackers mining with compromised IAM credentials turned on
+  termination protection so responders had to switch it off before
+  deleting the instances (Amazon, 2025-12-16).
+
 - `core` bundle: optional `DenyVendorOffNetwork<Name>` statements
   (`third_party_vendor_networks`, empty by default). For each listed
   outside vendor, the IAM roles and users its credentials belong to are

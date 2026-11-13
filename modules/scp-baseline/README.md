@@ -20,6 +20,8 @@ The partition comes from the provider, so the same call works in GovCloud.
 | `deny_service_specific_credentials` | `false` | Passed to `policies`. |
 | `require_imds_hop_limit_one` | `false` | Passed to `policies`. |
 | `deny_athena_results_bucket_outside_org` | `false` | Passed to `policies`. |
+| `deny_instance_protection_changes` | `false` | Passed to `policies`. |
+| `instance_protection_exempt_principal_arns` | `[]` | Passed to `policies`. |
 | `deny_tagged_kms_keys_off_org_network` | `false` | Passed to `policies`. |
 | `deny_ses_to_iam_users` | `false` | Passed to `policies`. |
 | `ses_iam_user_exempt_principal_arns` | `[]` | Passed to `policies`. |

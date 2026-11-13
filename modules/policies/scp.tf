@@ -19,6 +19,56 @@ locals {
     ArnNotLike = { "aws:PrincipalArn" = var.exempt_principal_arns }
   }
 
+  # Roles that may still turn instance termination and stop protection on
+  # or off when deny_instance_protection_changes is set.
+  instance_protection_exempt = concat(coalesce(var.exempt_principal_arns, []), var.instance_protection_exempt_principal_arns)
+
+  # Opt-in (deny_instance_protection_changes). A for-filter instead of a
+  # conditional: the three statements differ in shape, so they can't be
+  # unified with an empty list.
+  instance_protection_statements = [
+    {
+      # Attackers mining with stolen IAM credentials turned on termination
+      # protection so responders had to switch it off before deleting the
+      # instances (Amazon, 2025-12-16). Stop protection blocks the isolation
+      # playbook's StopInstances the same way. These three deny changing
+      # either after launch, on or off, except to exempt roles.
+      # Assumes EC2 sets ec2:Attribute/<name> when the request sets that
+      # attribute, and ec2:Attribute to the name in the Attribute=<name>
+      # form; proof/probe.py --instance-protection checks both live.
+      # Not covered: protection set at launch (RunInstances or a launch
+      # template), which has no condition key.
+      Sid      = "DenyInstanceDisableApiTerminationChange"
+      Effect   = "Deny"
+      Action   = ["ec2:ModifyInstanceAttribute"]
+      Resource = "arn:${local.p}:ec2:*:*:instance/*"
+      Condition = {
+        ArnNotLike = { "aws:PrincipalArn" = local.instance_protection_exempt }
+        Null       = { "ec2:Attribute/DisableApiTermination" = "false" }
+      }
+    },
+    {
+      Sid      = "DenyInstanceDisableApiStopChange"
+      Effect   = "Deny"
+      Action   = ["ec2:ModifyInstanceAttribute"]
+      Resource = "arn:${local.p}:ec2:*:*:instance/*"
+      Condition = {
+        ArnNotLike = { "aws:PrincipalArn" = local.instance_protection_exempt }
+        Null       = { "ec2:Attribute/DisableApiStop" = "false" }
+      }
+    },
+    {
+      Sid      = "DenyInstanceProtectionAttributeChange"
+      Effect   = "Deny"
+      Action   = ["ec2:ModifyInstanceAttribute"]
+      Resource = "arn:${local.p}:ec2:*:*:instance/*"
+      Condition = {
+        ArnNotLike             = { "aws:PrincipalArn" = local.instance_protection_exempt }
+        StringEqualsIgnoreCase = { "ec2:Attribute" = ["disableApiTermination", "disableApiStop"] }
+      }
+    },
+  ]
+
   protected_role_arns = [
     for prefix in var.protected_role_name_prefixes : "arn:${local.p}:iam::*:role/${prefix}*"
   ]
@@ -301,7 +351,7 @@ locals {
         StringNotEquals = { "aws:ResourceOrgID" = "$${aws:PrincipalOrgID}" }
       }
     },
-    ] : [], var.deny_tagged_kms_keys_off_org_network ? [
+    ] : [], [for statement in local.instance_protection_statements : statement if var.deny_instance_protection_changes], var.deny_tagged_kms_keys_off_org_network ? [
     {
       # The 2026 Binance theft began on one engineer's laptop (a fake job
       # interview's "assignment") and reached hot-wallet signing over months.
