@@ -63,20 +63,66 @@ def test_compliant_notebook_is_left_alone(make_fn):
     fn.sagemaker.stop_notebook_instance.assert_not_called()
 
 
-def test_stop_event_finishes_remediation_and_leaves_it_stopped(make_fn):
-    fn = make_fn(_description(status="Stopped", root="Enabled"), pending=True)
+def test_stop_event_disables_root_and_waits_for_the_update(make_fn):
+    fn = make_fn(_description(status="Stopped", internet="Disabled", root="Enabled"), pending=True, AUTO_RESTART="true")
 
     fn.lambda_handler(_stopped_event(), None)
 
-    fn.sagemaker.update_notebook_instance.assert_called_once_with(
-        NotebookInstanceName="nb1", DirectInternetAccess="Disabled", RootAccess="Disabled"
-    )
+    fn.sagemaker.update_notebook_instance.assert_called_once_with(NotebookInstanceName="nb1", RootAccess="Disabled")
+    # Starting it now would race the Updating state; the next Stopped event finishes.
+    fn.sagemaker.delete_tags.assert_not_called()
+    fn.sagemaker.start_notebook_instance.assert_not_called()
+
+
+def test_stop_event_after_the_update_clears_the_tag_and_leaves_it_stopped(make_fn):
+    fn = make_fn(_description(status="Stopped", internet="Disabled", root="Disabled"), pending=True)
+
+    fn.lambda_handler(_stopped_event(), None)
+
+    fn.sagemaker.update_notebook_instance.assert_not_called()
     fn.sagemaker.delete_tags.assert_called_once()
     fn.sagemaker.start_notebook_instance.assert_not_called()
 
 
+def test_update_call_matches_the_sagemaker_api(make_fn):
+    # The client is a MagicMock, so check the arguments against botocore's
+    # model; a parameter UpdateNotebookInstance lacks fails before any call.
+    import boto3
+
+    fn = make_fn(_description(status="Stopped", internet="Disabled", root="Enabled"), pending=True)
+    fn.lambda_handler(_stopped_event(), None)
+
+    model = boto3.client("sagemaker").meta.service_model.operation_model("UpdateNotebookInstance")
+    assert set(fn.sagemaker.update_notebook_instance.call_args.kwargs) <= set(model.input_shape.members)
+
+
+def test_internet_access_is_quarantined_not_updated(make_fn):
+    fn = make_fn(_description(status="Stopped", internet="Enabled", root="Disabled"), pending=True, AUTO_RESTART="true")
+
+    fn.lambda_handler(_stopped_event(), None)
+
+    fn.sagemaker.update_notebook_instance.assert_not_called()
+    fn.sagemaker.delete_tags.assert_not_called()
+    fn.sagemaker.start_notebook_instance.assert_not_called()
+    assert "recreated" in fn.sns.publish.call_args.kwargs["Subject"]
+
+
+def test_restarted_or_pending_notebook_is_stopped_when_in_service(make_fn):
+    fn = make_fn(_description(status="InService"), pending=True)
+    event = {
+        "detail-type": "SageMaker Notebook Instance State Change",
+        "detail": {"NotebookInstanceStatus": "InService", "NotebookInstanceName": "nb1"},
+    }
+
+    fn.lambda_handler(event, None)
+
+    fn.sagemaker.stop_notebook_instance.assert_called_once_with(NotebookInstanceName="nb1")
+
+
 def test_auto_restart_starts_it_again(make_fn):
-    fn = make_fn(_description(status="Stopped"), pending=True, AUTO_RESTART="true")
+    fn = make_fn(
+        _description(status="Stopped", internet="Disabled", root="Disabled"), pending=True, AUTO_RESTART="true"
+    )
 
     fn.lambda_handler(_stopped_event(), None)
 
@@ -92,7 +138,7 @@ def test_stop_event_without_pending_tag_does_nothing(make_fn):
 
 
 def test_already_stopped_notebook_is_fixed_in_one_pass(make_fn):
-    fn = make_fn(_description(status="Stopped"))
+    fn = make_fn(_description(status="Stopped", internet="Disabled", root="Enabled"))
     fn.sagemaker.list_tags.side_effect = lambda ResourceArn: {
         "Tags": [{"Key": "sagemaker-remediation-pending", "Value": "true"}]
     }
@@ -104,7 +150,7 @@ def test_already_stopped_notebook_is_fixed_in_one_pass(make_fn):
 
 
 def test_failed_update_keeps_the_tag_and_notifies(make_fn):
-    fn = make_fn(_description(status="Stopped"), pending=True)
+    fn = make_fn(_description(status="Stopped", root="Enabled"), pending=True)
     fn.sagemaker.update_notebook_instance.side_effect = ClientError(
         {"Error": {"Code": "ValidationException", "Message": "no subnet"}}, "UpdateNotebookInstance"
     )

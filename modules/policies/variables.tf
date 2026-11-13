@@ -303,7 +303,7 @@ variable "boundary_policy_path" {
 }
 
 variable "delegated_role_path" {
-  description = "IAM path under which boundary-bound principals may create, change and pass roles."
+  description = "IAM path under which boundary-bound principals may create, change and pass roles, and change users and customer managed policies."
   type        = string
   default     = "/workload/"
 

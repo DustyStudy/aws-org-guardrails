@@ -10,8 +10,9 @@ so the same function serves both the event-driven and Config-rule paths:
    (catches drift / pre-existing notebooks).
 3. The native "SageMaker Notebook Instance State Change" EventBridge
    event with NotebookInstanceStatus == "Stopped" - the second half of
-   remediation, since SageMaker only allows changing DirectInternetAccess
-   or RootAccess while the notebook is stopped.
+   remediation, since SageMaker only allows changing RootAccess while the
+   notebook is stopped. DirectInternetAccess cannot be changed at all on an
+   existing notebook; it has to be recreated.
 
 Remediation is necessarily two-phase because of that stop-before-update
 requirement:
@@ -20,10 +21,11 @@ requirement:
   it "sagemaker-remediation-pending=true" and stop it if it's running.
 
   Phase 2 (finish_remediation): triggered once the notebook reaches the
-  Stopped state; if it carries the pending tag, disable
-  DirectInternetAccess/RootAccess, remove the tag, and optionally restart
-  it (AUTO_RESTART, default false - leaves it stopped for review unless
-  explicitly enabled).
+  Stopped state; if it carries the pending tag, disable RootAccess. If
+  DirectInternetAccess is enabled, keep the tag, leave it stopped and
+  notify that it must be recreated. Otherwise remove the tag and
+  optionally restart it (AUTO_RESTART, default false - leaves it stopped
+  for review unless explicitly enabled).
 
 Env vars:
   SNS_TOPIC_ARN  - where to send notifications
@@ -101,9 +103,10 @@ def _flag_and_stop(name):
             message=(
                 f"Notebook {name} has DirectInternetAccess="
                 f"{description.get('DirectInternetAccess')} and RootAccess="
-                f"{description.get('RootAccess')}. Stopping it now; network/root "
-                "access settings will be disabled automatically once it's fully "
-                "stopped."
+                f"{description.get('RootAccess')}. Stopping it now; root access "
+                "will be disabled once it's fully stopped. Direct internet access "
+                "cannot be changed in place: such a notebook stays stopped until "
+                "it is recreated."
             ),
         )
     elif status == "Stopped":
@@ -126,31 +129,35 @@ def _finish_remediation(name, description=None):
         logger.info("Notebook %s stopped but has no pending-remediation tag, nothing to do", name)
         return
 
-    if not _is_noncompliant(description):
-        # Someone else already fixed it before this ran - just clear the tag.
-        _clear_pending_tag(arn)
+    if description.get("RootAccess") == "Enabled":
+        try:
+            sagemaker.update_notebook_instance(NotebookInstanceName=name, RootAccess="Disabled")
+        except ClientError as e:
+            logger.exception("Failed to update notebook %s", name)
+            _notify(
+                subject=f"FAILED to remediate SageMaker notebook {name}",
+                message=(
+                    f"Notebook {name} is stopped and still has RootAccess=Enabled. The update failed: "
+                    f"{e.response.get('Error', {}).get('Message', str(e))} "
+                    "Manual remediation is required. The pending-remediation tag has been left in place."
+                ),
+            )
+            return
+        # The notebook goes Updating, then Stopped again; that event finishes
+        # the job, so the tag stays and nothing starts it mid-update.
+        logger.info("Disabled RootAccess on %s, waiting for it to return to Stopped", name)
         return
 
-    try:
-        sagemaker.update_notebook_instance(
-            NotebookInstanceName=name,
-            DirectInternetAccess="Disabled",
-            RootAccess="Disabled",
-        )
-    except ClientError as e:
-        # e.g. DirectInternetAccess can't be Disabled on a notebook that has
-        # no subnet (no VPC) - it has to be recreated inside a VPC instead.
-        logger.exception("Failed to update notebook %s", name)
+    if description.get("DirectInternetAccess") == "Enabled":
+        # UpdateNotebookInstance has no DirectInternetAccess parameter; only
+        # recreating the notebook in a VPC subnet with it Disabled fixes it.
+        # Keep the tag; if someone starts it, the InService event stops it.
         _notify(
-            subject=f"FAILED to remediate SageMaker notebook {name}",
+            subject=f"SageMaker notebook {name} needs to be recreated",
             message=(
-                f"Notebook {name} is stopped and still has DirectInternetAccess="
-                f"{description.get('DirectInternetAccess')} / RootAccess="
-                f"{description.get('RootAccess')}. The update failed: "
-                f"{e.response.get('Error', {}).get('Message', str(e))} "
-                "Manual remediation is required (a notebook with no VPC subnet "
-                "must be recreated inside a VPC). The pending-remediation tag "
-                "has been left in place."
+                f"Notebook {name} has DirectInternetAccess=Enabled, which cannot be changed in place. "
+                "It has been left stopped with the pending-remediation tag. Copy off any data on its "
+                "volume, then recreate it in a VPC subnet with DirectInternetAccess=Disabled."
             ),
         )
         return
@@ -164,7 +171,7 @@ def _finish_remediation(name, description=None):
     _notify(
         subject=f"Remediated SageMaker notebook {name}",
         message=(
-            f"Notebook {name} had DirectInternetAccess and RootAccess disabled. "
+            f"Notebook {name} is compliant again. "
             + ("It has been restarted." if restarted else "It has been left stopped for review.")
         ),
     )
@@ -182,12 +189,18 @@ def _handle_cloudtrail_event(event):
 
 def _handle_state_change_event(event):
     detail = event.get("detail", {})
-    if detail.get("NotebookInstanceStatus") != "Stopped":
-        logger.info("Ignoring state-change event with status %s", detail.get("NotebookInstanceStatus"))
+    status = detail.get("NotebookInstanceStatus")
+    if status not in ("Stopped", "InService"):
+        logger.info("Ignoring state-change event with status %s", status)
         return
     name = detail.get("NotebookInstanceName")
     if not name:
         logger.warning("No NotebookInstanceName in state-change event, skipping")
+        return
+    if status == "InService":
+        # Catches a notebook first seen while Pending, and a restart of one
+        # still awaiting recreation.
+        _flag_and_stop(name)
         return
     _finish_remediation(name)
 
