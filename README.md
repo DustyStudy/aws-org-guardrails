@@ -80,13 +80,13 @@ the guardrail protects.
 | `core` | Deny `organizations:LeaveOrganization` | No |
 | | Deny region opt-in and opt-out | Yes |
 | | Deny everything to the member account root user (centralized root access sessions from `sts:AssumeRoot` are not denied) | No |
-| | Deny creating or changing protected roles (`OrganizationAccountAccessRole`, `security-*`); every exempt role must be protected | Yes |
+| | Deny creating, changing or passing protected roles (`OrganizationAccountAccessRole`, `security-*`); every exempt role must be protected | Yes |
 | | Deny creating or changing customer managed policies named with a protected prefix; name policies attached to protected roles that way | Yes |
 | | Deny creating IAM users, access keys and console passwords (optional) | Yes |
 | | Deny creating or resetting service-specific credentials: Bedrock API keys, CodeCommit Git credentials, Keyspaces passwords (optional, off by default) | Yes |
 | | Deny every Amazon SES action to IAM users (optional, off by default; listed SMTP users keep it) | Own user list |
-| `security-services` | Deny stopping or changing CloudTrail trails, CloudTrail Lake event data stores, Insights, and AWS Config recording and aggregators | Yes |
-| | Deny disabling GuardDuty (including suppression filters, publishing destinations and member monitoring), Security Hub (including members) and Access Analyzer | Yes |
+| `security-services` | Deny stopping or changing CloudTrail trails, CloudTrail Lake event data stores, Insights, and AWS Config recording, delivery channels and aggregators | Yes |
+| | Deny disabling or muting GuardDuty (suppression filters, trusted IP and entity lists, publishing destinations, member monitoring), Security Hub (members, single controls, automation rules) and Access Analyzer (archive rules) | Yes |
 | `data-and-compute` | Deny disabling EBS encryption by default | Yes |
 | | Deny changing the account-level S3 Block Public Access | Yes |
 | | Deny launching instances without IMDSv2 | No |
@@ -100,9 +100,10 @@ application teams and pipelines) can do:
 
 - Any role or user they create must carry the same boundary.
 - They cannot remove the boundary or edit the boundary policy.
-- They can only create, change or `PassRole` roles under a delegated path (`/workload/` by default).
+- They can only create, change, re-bound or `PassRole` roles under a delegated path (`/workload/` by default).
 - They can only change IAM users and customer managed policies (new versions, deletion) under the same path, so they cannot take over an existing user or rewrite a policy attached to an admin role. IAM groups are out of bounds entirely.
 - They can only create service-linked roles for a listed set of services.
+- They cannot change or delete existing SAML and OIDC identity providers, which admin roles may trust. Creating new ones stays open (EKS IRSA needs it).
 - Organizations and account settings are out of bounds.
 
 The boundary contains no account IDs (resource ARNs use `*`, and the

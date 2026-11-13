@@ -176,8 +176,15 @@ def test_core_bundle_with_ses_deny_fits_the_scp_size_limit(ses_locked):
 )
 def test_protected_roles_cannot_be_changed_by_workloads(commercial, role, expected):
     arn = f"arn:aws:iam::{ACCOUNT}:role/{role}"
-    for action in ("iam:DeleteRole", "iam:AttachRolePolicy", "iam:UpdateAssumeRolePolicy"):
+    for action in ("iam:DeleteRole", "iam:AttachRolePolicy", "iam:UpdateAssumeRolePolicy", "iam:PassRole"):
         assert decide(commercial, req(action, resource=arn)) is expected
+
+
+def test_exempt_roles_cannot_be_passed_to_compute(commercial):
+    # A function or instance running as an exempt role would inherit its exemption.
+    arn = f"arn:aws:iam::{ACCOUNT}:role/security-breakglass"
+    assert decide(commercial, req("iam:PassRole", resource=arn)) is Decision.EXPLICIT_DENY
+    assert decide(commercial, req("iam:PassRole", PIPELINE, arn)) is Decision.ALLOW
 
 
 def test_nobody_can_create_a_role_named_like_an_exempt_principal(commercial):
@@ -223,6 +230,17 @@ def test_pipeline_can_maintain_protected_roles(commercial):
         "guardduty:StopMonitoringMembers",
         "guardduty:DeletePublishingDestination",
         "securityhub:DisassociateMembers",
+        # Config delivery redirected, and findings suppressed instead of disabled.
+        "config:PutDeliveryChannel",
+        "config:PutConfigurationAggregator",
+        "guardduty:CreateIPSet",
+        "guardduty:UpdateTrustedEntitySet",
+        "securityhub:UpdateStandardsControl",
+        "securityhub:BatchUpdateStandardsControlAssociations",
+        "securityhub:CreateAutomationRuleV2",
+        "securityhub:DisableSecurityHubV2",
+        "access-analyzer:CreateArchiveRule",
+        "access-analyzer:ApplyArchiveRule",
     ],
 )
 def test_workloads_cannot_blind_security_tooling(commercial, action):

@@ -6,6 +6,36 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- `core/DenyProtectedRoleChanges` now denies `iam:PassRole` on protected
+  roles to non-exempt principals. Compute running as an exempt role
+  inherits its exemption, so passing one was a way around every
+  guardrail. **Check before upgrading:** non-exempt automation that passes
+  a `security-*` role (for example a stack that deploys a Config or
+  GuardDuty helper) must run as an exempt role.
+- `security-services/ProtectAuditLogging` now denies
+  `config:PutDeliveryChannel` (redirecting Config history to another
+  bucket) and `config:PutConfigurationAggregator`.
+- `security-services/ProtectThreatDetection` now also denies the ways to
+  mute a detector without disabling it: GuardDuty trusted IP and entity
+  lists (`CreateIPSet`, `UpdateIPSet`, `CreateTrustedEntitySet`,
+  `UpdateTrustedEntitySet`), Security Hub per-control disables
+  (`UpdateStandardsControl`, `BatchUpdateStandardsControlAssociations`),
+  automation rules (v1 and v2) and `DisableSecurityHubV2`, and Access
+  Analyzer archive rules (`CreateArchiveRule`, `UpdateArchiveRule`,
+  `ApplyArchiveRule`). In a delegated administrator account, manage
+  these from an exempt role.
+- Permissions boundary: `DenyRoleChangesOutsideDelegatedPath` and
+  `DenyUserChangesOutsideDelegatedPath` now include
+  `iam:PutRolePermissionsBoundary` and `iam:PutUserPermissionsBoundary`,
+  so a bounded principal cannot swap a stricter boundary on an admin
+  principal for this one.
+- Permissions boundary: new `DenyIdentityProviderChanges` denies updating,
+  deleting or changing the audiences of existing SAML and OIDC providers.
+  Admin roles that trust a provider could otherwise be taken over by
+  rewriting its metadata. Creating providers is still allowed.
+
 ### Added
 
 - `data-and-compute` bundle: optional `DenyInstanceDisableApiTerminationChange`,
