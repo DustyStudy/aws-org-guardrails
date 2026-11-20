@@ -13,6 +13,7 @@ module "policies" {
   deny_service_specific_credentials      = var.deny_service_specific_credentials
   require_imds_hop_limit_one             = var.require_imds_hop_limit_one
   deny_athena_results_bucket_outside_org = var.deny_athena_results_bucket_outside_org
+  deny_emr_log_bucket_outside_org        = var.deny_emr_log_bucket_outside_org
   deny_instance_protection_changes       = var.deny_instance_protection_changes
 
   instance_protection_exempt_principal_arns = var.instance_protection_exempt_principal_arns

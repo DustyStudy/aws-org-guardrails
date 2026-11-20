@@ -171,6 +171,19 @@ variable "deny_athena_results_bucket_outside_org" {
   default     = false
 }
 
+variable "deny_emr_log_bucket_outside_org" {
+  description = <<-EOT
+    Deny reading and writing objects in buckets named like the EMR default
+    log bucket (aws-logs-<account-id>-<region>) when the bucket is owned
+    outside this organization, so a pre-created look-alike bucket cannot
+    capture cluster logs. Off by default: first confirm in S3 data events
+    that no workload uses such a bucket in an account outside the
+    organization.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "deny_tagged_kms_keys_off_org_network" {
   description = <<-EOT
     Deny signing, decrypting, granting, re-tagging and key-policy changes on

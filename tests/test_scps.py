@@ -21,7 +21,13 @@ SCP_MAX_CHARS = 5120
 SCP_MAX_PER_TARGET = 5
 
 # Statements that apply to everyone, exempt principals included.
-NO_EXEMPTION = {"DenyLeaveOrganization", "DenyRootUser", "RequireImdsV2OnLaunch", "DenyAthenaResultsBucketOutsideOrg"}
+NO_EXEMPTION = {
+    "DenyLeaveOrganization",
+    "DenyRootUser",
+    "RequireImdsV2OnLaunch",
+    "DenyAthenaResultsBucketOutsideOrg",
+    "DenyEmrLogBucketOutsideOrg",
+}
 
 
 def req(action, principal=WORKLOAD, resource="*", region="us-east-1", **extra):
