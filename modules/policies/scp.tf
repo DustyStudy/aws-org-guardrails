@@ -427,6 +427,28 @@ locals {
         StringNotEquals = { "aws:ResourceOrgID" = "$${aws:PrincipalOrgID}" }
       }
     },
+    ] : [], var.deny_emr_log_bucket_outside_org ? [
+    {
+      # The EMR module of AWS SDK for pandas (awswrangler) before 3.18.0
+      # used aws-logs-<account-id>-<region> as the default cluster log
+      # location without checking who owns it. Whoever creates that name
+      # first in their own account reads the cluster logs, step output
+      # included (CVE-2026-127119). The cluster's instance role writes the
+      # logs, so the deny applies. As with the Athena statement, a missing
+      # aws:ResourceOrgID (standalone account) is denied too. No exemption:
+      # no role has a reason to use a look-alike bucket in another
+      # organization.
+      Sid    = "DenyEmrLogBucketOutsideOrg"
+      Effect = "Deny"
+      Action = ["s3:GetObject*", "s3:PutObject*", "s3:ListBucket", "s3:GetBucketLocation"]
+      Resource = [
+        "arn:${local.p}:s3:::aws-logs-????????????-*",
+        "arn:${local.p}:s3:::aws-logs-????????????-*/*",
+      ]
+      Condition = {
+        StringNotEquals = { "aws:ResourceOrgID" = "$${aws:PrincipalOrgID}" }
+      }
+    },
     ] : [], [for statement in local.instance_protection_statements : statement if var.deny_instance_protection_changes], var.deny_tagged_kms_keys_off_org_network ? [
     {
       # Credentials lifted from a laptop work from anywhere unless the key

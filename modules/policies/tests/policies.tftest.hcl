@@ -114,6 +114,42 @@ run "athena_results_bucket_statement_keys_on_resource_org" {
   }
 }
 
+run "emr_log_bucket_statement_is_off_by_default" {
+  command = plan
+
+  assert {
+    condition     = !strcontains(output.scp_policies["data-and-compute"], "DenyEmrLogBucketOutsideOrg")
+    error_message = "DenyEmrLogBucketOutsideOrg must be opt-in: check S3 data events for outside-org log buckets first."
+  }
+}
+
+run "emr_log_bucket_statement_keys_on_resource_org" {
+  command = plan
+
+  variables {
+    deny_emr_log_bucket_outside_org = true
+  }
+
+  assert {
+    condition = jsonencode(one([
+      for s in jsondecode(output.scp_policies["data-and-compute"]).Statement : s.Condition if s.Sid == "DenyEmrLogBucketOutsideOrg"
+      ])) == jsonencode({
+      StringNotEquals = { "aws:ResourceOrgID" = "$${aws:PrincipalOrgID}" }
+    })
+    error_message = "The EMR log deny must apply only to buckets owned outside the caller's organization, with no role exemption."
+  }
+
+  assert {
+    condition = toset(one([
+      for s in jsondecode(output.scp_policies["data-and-compute"]).Statement : s.Resource if s.Sid == "DenyEmrLogBucketOutsideOrg"
+      ])) == toset([
+      "arn:${var.partition}:s3:::aws-logs-????????????-*",
+      "arn:${var.partition}:s3:::aws-logs-????????????-*/*",
+    ])
+    error_message = "Only the aws-logs-<account-id>-<region> name shape and its objects may be in scope."
+  }
+}
+
 run "kms_network_perimeter_statement_is_off_by_default" {
   command = plan
 

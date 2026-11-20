@@ -38,6 +38,19 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `data-and-compute` bundle: optional `DenyEmrLogBucketOutsideOrg`
+  statement (`deny_emr_log_bucket_outside_org`, off by default) denies
+  object reads and writes, `ListBucket` and `GetBucketLocation` on buckets
+  named `aws-logs-<account-id>-<region>` whose `aws:ResourceOrgID` is not
+  the caller's organization. The EMR module of AWS SDK for pandas
+  (awswrangler) 1.1.0 to before 3.18.0 used that name as the default
+  cluster log location without checking the owner, so a look-alike bucket
+  created first in another account received the cluster logs, step output
+  included. Buckets in standalone accounts have no `aws:ResourceOrgID` and
+  are denied too. It adds no SCP. Threat:
+  [AWS bulletin 2026-181-AWS, CVE-2026-127119](https://aws.amazon.com/security/security-bulletins/2026-181-aws/).
+  NIST SP 800-53 Rev5: AC-3, AC-4, SC-7.
+
 - `data-and-compute` bundle: optional `DenyInstanceDisableApiTerminationChange`,
   `DenyInstanceDisableApiStopChange` and `DenyInstanceProtectionAttributeChange`
   statements (`deny_instance_protection_changes`, off by default). They deny

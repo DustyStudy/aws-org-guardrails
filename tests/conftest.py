@@ -71,6 +71,7 @@ def data_locked() -> RenderedPolicies:
         extra_vars={
             "require_imds_hop_limit_one": True,
             "deny_athena_results_bucket_outside_org": True,
+            "deny_emr_log_bucket_outside_org": True,
             "deny_tagged_kms_keys_off_org_network": True,
             "deny_instance_protection_changes": True,
             "instance_protection_exempt_principal_arns": [f"arn:aws:iam::*:role/security-{'x' * 40}"],

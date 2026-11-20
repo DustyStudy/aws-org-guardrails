@@ -125,6 +125,12 @@ variable "deny_athena_results_bucket_outside_org" {
   default     = false
 }
 
+variable "deny_emr_log_bucket_outside_org" {
+  description = "Deny S3 access to EMR default log bucket names (aws-logs-<account-id>-<region>) owned outside the organization. Off by default; check S3 data events for such buckets in outside accounts first."
+  type        = bool
+  default     = false
+}
+
 variable "deny_tagged_kms_keys_off_org_network" {
   description = "Deny using KMS keys tagged guardrails:network-perimeter=true except through organization VPC endpoints. Off by default; check CloudTrail for calls on those keys without a vpcEndpointId first."
   type        = bool
