@@ -26,6 +26,10 @@ locals {
   # or off when deny_instance_protection_changes is set.
   instance_protection_exempt = concat(coalesce(var.exempt_principal_arns, []), var.instance_protection_exempt_principal_arns)
 
+  # Roles that may still delete recovery points and change backup vaults
+  # when deny_backup_destruction is set.
+  backup_destruction_exempt = concat(coalesce(var.exempt_principal_arns, []), var.backup_destruction_exempt_principal_arns)
+
   # Opt-in (deny_instance_protection_changes). A for-filter instead of a
   # conditional: the three statements differ in shape, so they can't be
   # unified with an empty list.
@@ -246,7 +250,7 @@ locals {
     ],
   )
 
-  security_services_statements = [
+  security_services_statements = concat([
     {
       Sid    = "ProtectAuditLogging"
       Effect = "Deny"
@@ -312,7 +316,38 @@ locals {
       Resource  = "*"
       Condition = local.exempt
     },
-  ]
+    ], var.deny_backup_destruction ? [
+    {
+      # Ransomware crews delete or neuter backups before encrypting. These
+      # are AWS Backup control-plane calls a principal makes.
+      # ec2:DeleteSnapshot and rds:Delete*Snapshot are left out on purpose:
+      # AWS's managed backup role policy grants them, so lifecycle expiry of
+      # EBS and RDS recovery points may run through the customer's backup
+      # role, which this SCP would then block. Vault Lock covers those.
+      # UnlockSnapshot is in scope because removing an EBS snapshot lock is
+      # the step before deleting the snapshot. UpdateRegionSettings is in
+      # scope because it can opt resource types out of AWS Backup.
+      Sid    = "DenyBackupDestruction"
+      Effect = "Deny"
+      Action = [
+        "backup:DeleteBackupPlan",
+        "backup:DeleteBackupSelection",
+        "backup:DeleteBackupVault",
+        "backup:DeleteBackupVaultAccessPolicy",
+        "backup:DeleteBackupVaultLockConfiguration",
+        "backup:DeleteRecoveryPoint",
+        "backup:DisassociateRecoveryPoint",
+        "backup:PutBackupVaultAccessPolicy",
+        "backup:UpdateRecoveryPointLifecycle",
+        "backup:UpdateRegionSettings",
+        "ec2:UnlockSnapshot",
+      ]
+      Resource = "*"
+      Condition = {
+        ArnNotLike = { "aws:PrincipalArn" = local.backup_destruction_exempt }
+      }
+    },
+  ] : [])
 
   data_and_compute_statements = concat([
     {

@@ -61,6 +61,16 @@ variable "ses_iam_user_exempt_principal_arns" {
   default = []
 }
 
+variable "deny_backup_destruction" {
+  type    = bool
+  default = false
+}
+
+variable "backup_destruction_exempt_principal_arns" {
+  type    = list(string)
+  default = []
+}
+
 variable "third_party_vendor_networks" {
   type = map(object({
     principal_arns = list(string)
@@ -90,6 +100,9 @@ module "policies" {
 
   deny_ses_to_iam_users              = var.deny_ses_to_iam_users
   ses_iam_user_exempt_principal_arns = var.ses_iam_user_exempt_principal_arns
+
+  deny_backup_destruction                  = var.deny_backup_destruction
+  backup_destruction_exempt_principal_arns = var.backup_destruction_exempt_principal_arns
 
   third_party_vendor_networks = var.third_party_vendor_networks
 }

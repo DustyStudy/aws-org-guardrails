@@ -404,6 +404,61 @@ def test_protection_rule_only_applies_to_the_instance_resource(protection_locked
     assert decide(protection_locked, request) is Decision.ALLOW
 
 
+# --- backup destruction before ransomware (Amazon, 2026-02-20) --------------
+
+BACKUP_ADMIN = f"arn:aws:iam::{ACCOUNT}:role/security-backup-{'x' * 40}"
+VAULT = f"arn:aws:backup:us-east-1:{ACCOUNT}:backup-vault:FedRAMPComplianceVault"
+RECOVERY_POINT = "arn:aws:ec2:us-east-1::snapshot/snap-0abc"
+BACKUP_DESTRUCTION = [
+    ("backup:DeleteRecoveryPoint", RECOVERY_POINT),
+    ("backup:UpdateRecoveryPointLifecycle", RECOVERY_POINT),
+    ("backup:DisassociateRecoveryPoint", RECOVERY_POINT),
+    ("backup:DeleteBackupVault", VAULT),
+    ("backup:PutBackupVaultAccessPolicy", VAULT),
+    ("backup:DeleteBackupVaultAccessPolicy", VAULT),
+    ("backup:DeleteBackupVaultLockConfiguration", VAULT),
+    ("backup:DeleteBackupPlan", "*"),
+    ("backup:DeleteBackupSelection", "*"),
+    ("backup:UpdateRegionSettings", "*"),
+    ("ec2:UnlockSnapshot", RECOVERY_POINT),
+]
+
+
+def test_backups_stay_open_by_default(commercial):
+    assert "DenyBackupDestruction" not in commercial.scps_raw["security-services"]
+    assert decide(commercial, req("backup:DeleteRecoveryPoint", resource=RECOVERY_POINT)) is Decision.ALLOW
+
+
+@pytest.mark.parametrize(("action", "resource"), BACKUP_DESTRUCTION)
+def test_stolen_credentials_cannot_destroy_backups(backup_locked, action, resource):
+    assert decide(backup_locked, req(action, resource=resource)) is Decision.EXPLICIT_DENY
+
+
+@pytest.mark.parametrize("principal", [BREAKGLASS, PIPELINE, BACKUP_ADMIN])
+def test_exempt_and_listed_roles_can_manage_backups(backup_locked, principal):
+    assert (
+        decide(backup_locked, req("backup:DeleteRecoveryPoint", principal, resource=RECOVERY_POINT)) is Decision.ALLOW
+    )
+
+
+@pytest.mark.parametrize(
+    "action",
+    [
+        "backup:StartBackupJob",
+        "backup:StartRestoreJob",
+        "backup:CreateBackupVault",
+        "backup:PutBackupVaultLockConfiguration",
+        "ec2:LockSnapshot",
+    ],
+)
+def test_backing_up_restoring_and_locking_still_work(backup_locked, action):
+    assert decide(backup_locked, req(action)) is Decision.ALLOW
+
+
+def test_security_services_bundle_with_backup_protection_fits_the_scp_size_limit(backup_locked):
+    assert len(backup_locked.scps_raw["security-services"]) <= SCP_MAX_CHARS
+
+
 # --- Athena default result bucket (CVE-2026-118029) -------------------------
 
 ORG = "o-exampleorg1"

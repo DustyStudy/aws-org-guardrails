@@ -119,6 +119,18 @@ variable "instance_protection_exempt_principal_arns" {
   default     = []
 }
 
+variable "deny_backup_destruction" {
+  description = "Deny deleting AWS Backup recovery points, vaults, plans and selections, shortening lifecycles, changing vault policies, removing Vault Lock and unlocking EBS snapshots, except for exempt roles. Off by default; list roles that manage backups in backup_destruction_exempt_principal_arns first."
+  type        = bool
+  default     = false
+}
+
+variable "backup_destruction_exempt_principal_arns" {
+  description = "Roles, besides exempt_principal_arns, that may still delete recovery points and change backup vaults, plans and selections."
+  type        = list(string)
+  default     = []
+}
+
 variable "deny_athena_results_bucket_outside_org" {
   description = "Deny S3 access to Athena default result bucket names (aws-athena-query-results-<account-id>-<region>) owned outside the organization. Off by default; check S3 data events for such buckets in outside accounts first."
   type        = bool

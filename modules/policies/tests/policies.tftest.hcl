@@ -434,6 +434,28 @@ run "rejects_non_service_principals_for_service_linked_roles" {
   expect_failures = [var.service_linked_role_services]
 }
 
+run "backup_destruction_exemption_must_be_a_protected_role" {
+  command = plan
+
+  variables {
+    deny_backup_destruction                  = true
+    backup_destruction_exempt_principal_arns = ["arn:aws:iam::*:role/backup-admin"]
+  }
+
+  expect_failures = [var.backup_destruction_exempt_principal_arns]
+}
+
+run "backup_destruction_exemption_must_be_a_role_in_the_partition" {
+  command = plan
+
+  variables {
+    deny_backup_destruction                  = true
+    backup_destruction_exempt_principal_arns = ["arn:aws-us-gov:iam::*:role/security-backup-admin"]
+  }
+
+  expect_failures = [var.backup_destruction_exempt_principal_arns]
+}
+
 run "instance_protection_exemption_must_be_a_protected_role" {
   command = plan
 

@@ -351,3 +351,44 @@ variable "service_linked_role_services" {
     error_message = "service_linked_role_services entries must be service principals such as ecs.amazonaws.com."
   }
 }
+
+variable "deny_backup_destruction" {
+  description = <<-EOT
+    Deny deleting AWS Backup recovery points, vaults, plans and selections,
+    shortening recovery point lifecycles, changing vault access policies,
+    removing Vault Lock, opting resource types out of AWS Backup and
+    unlocking EBS snapshots, so stolen credentials cannot destroy backups
+    before ransomware. Off by default: list roles that manage backups today
+    in backup_destruction_exempt_principal_arns first. Direct
+    ec2:DeleteSnapshot and rds:Delete*Snapshot are not covered (AWS Backup's
+    own service role needs them for lifecycle expiry); use Vault Lock.
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "backup_destruction_exempt_principal_arns" {
+  description = "Roles, besides exempt_principal_arns, that may still delete recovery points and change backup vaults, plans and selections when deny_backup_destruction is set. ARN patterns allowed; each name must start with one of protected_role_name_prefixes."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for arn in var.backup_destruction_exempt_principal_arns :
+      can(regex("^arn:aws(-us-gov|-cn)?:iam::([*]|[0-9]{12}):role/.+$", arn)) && split(":", arn)[1] == var.partition
+    ])
+    error_message = "Each backup destruction exempt principal must be an IAM role ARN pattern in var.partition, such as arn:aws:iam::*:role/security-backup-admin."
+  }
+
+  # As with exempt_principal_arns: a name anyone can create or change would
+  # hand them the exemption.
+  validation {
+    condition = alltrue([
+      for arn in var.backup_destruction_exempt_principal_arns : anytrue([
+        for prefix in var.protected_role_name_prefixes :
+        startswith(element(split(":role/", arn), 1), prefix)
+      ])
+    ])
+    error_message = "Every backup destruction exempt role name must start with one of protected_role_name_prefixes, or anyone could create a role with that name and inherit the exemption."
+  }
+}
