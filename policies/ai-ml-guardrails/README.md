@@ -142,7 +142,7 @@ module "ai_ml_guardrails" {
 - These SCPs only govern the AWS-API surface (creating/invoking
   resources). They say nothing about what an agent *does* once it has
   valid credentials and a broad IAM role — see
-  [`ai-agent-iam-auditor`](../ai-agent-iam-auditor/) for detecting
+  [`ai-agent-iam-auditor`](../../modules/ai-agent-iam-auditor/) for detecting
   over-permissioned agent roles, which is the complementary risk.
 - `deny-bedrock-long-term-credentials` does not cover the management
   account (SCPs never do) or `aws-marketplace:Subscribe`, which is used for

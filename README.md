@@ -7,8 +7,7 @@
 Terraform modules for AWS Organizations guardrails: service control policies,
 a permissions boundary for delegated IAM, and IAM Identity Center permission
 sets that carry that boundary, plus [AI and ML guardrails](#ai-and-ml-guardrails)
-for Bedrock and SageMaker. Every policy is partition-aware, so the same
-modules deploy to commercial regions and GovCloud.
+for Bedrock and SageMaker. The policies use partition-aware ARNs. Live deployment tests ran in commercial AWS. GovCloud policies were checked with IAM Access Analyzer. [Verification scope](#status-and-limits).
 
 **At a glance**
 
@@ -61,12 +60,12 @@ attached.
 
 ## Modules
 
-| Module | What it does |
-|--------|--------------|
-| [`policies`](modules/policies) | Renders the SCP bundles and the permissions boundary as JSON. No provider and no resources, so it can be tested offline. |
-| [`scp-baseline`](modules/scp-baseline) | Creates the SCP bundles and attaches them to roots, OUs or accounts. Refuses to plan past the per-target SCP quota (5 by default; set `max_scps_per_target = 10` for AWS's current quota). |
-| [`permission-boundary`](modules/permission-boundary) | Creates the boundary policy in a member account. |
-| [`identity-center`](modules/identity-center) | Permission sets, policy attachments, boundaries and group assignments. Refuses a permission set with no boundary unless it is explicitly exempted. |
+| Module | Where it runs | What it does |
+|---|---|---|
+| [`policies`](modules/policies) | Offline, without an AWS provider | Renders SCP bundles and the permissions boundary as JSON. |
+| [`scp-baseline`](modules/scp-baseline) | Management account or delegated policy administrator | Attaches bundles to roots, OUs, or accounts. Checks the per-target SCP quota at plan time (default 5, configurable with `max_scps_per_target`). |
+| [`permission-boundary`](modules/permission-boundary) | Each target member account | Creates the boundary policy for delegated IAM. |
+| [`identity-center`](modules/identity-center) | IAM Identity Center instance | Creates permission sets, policy attachments and assignments. Each permission set requires a boundary unless explicitly exempted. |
 
 ## What the guardrails enforce
 
