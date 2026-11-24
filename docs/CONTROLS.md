@@ -41,6 +41,7 @@ which:
 | CM-5 Access Restrictions for Change | Guardrail roles, their prefix-named customer managed policies and the boundary policy are locked against change | `core/DenyProtectedRoleChanges`, `core/DenyProtectedPolicyChanges`, `DenyBoundaryPolicyChanges` |
 | CM-6 Configuration Settings | IMDSv2 required at launch and locked afterwards | `data-and-compute` |
 | CM-7 Least Functionality | Regional services limited to approved regions | `region-restriction` |
+| CP-9 System Backup | Opt-in: recovery points, backup vaults, plans and selections cannot be deleted, recovery point lifecycles shortened, Vault Lock removed or EBS snapshots unlocked outside exempt roles | `security-services/DenyBackupDestruction` (`deny_backup_destruction`) |
 | SC-7 Boundary Protection | Account-level S3 Block Public Access cannot be turned off | `data-and-compute/ProtectAccountPublicAccessBlock` |
 | SC-28 Protection of Information at Rest | EBS encryption by default cannot be disabled | `data-and-compute/ProtectEbsDefaultEncryption` |
 | SI-4 System Monitoring | GuardDuty, Security Hub and Access Analyzer cannot be disabled or muted with suppression filters, trusted IP or entity lists, automation or archive rules, or per-control disables | `security-services/ProtectThreatDetection` |

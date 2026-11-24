@@ -24,6 +24,8 @@ The partition comes from the provider, so the same call works in GovCloud.
 | `deny_emr_log_bucket_outside_org` | `false` | Passed to `policies`. |
 | `deny_instance_protection_changes` | `false` | Passed to `policies`. |
 | `instance_protection_exempt_principal_arns` | `[]` | Passed to `policies`. |
+| `deny_backup_destruction` | `false` | Passed to `policies`. |
+| `backup_destruction_exempt_principal_arns` | `[]` | Passed to `policies`. |
 | `deny_tagged_kms_keys_off_org_network` | `false` | Passed to `policies`. |
 | `deny_ses_to_iam_users` | `false` | Passed to `policies`. |
 | `ses_iam_user_exempt_principal_arns` | `[]` | Passed to `policies`. |

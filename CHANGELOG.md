@@ -8,6 +8,21 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+- Opt-in `security-services/DenyBackupDestruction` (`deny_backup_destruction`,
+  off by default) denies deleting AWS Backup recovery points, vaults, plans
+  and selections, `UpdateRecoveryPointLifecycle`,
+  `DisassociateRecoveryPoint`, vault access-policy changes, removing Vault
+  Lock, `UpdateRegionSettings` and `ec2:UnlockSnapshot`, except to exempt
+  roles and `backup_destruction_exempt_principal_arns`. Threat: ransomware
+  operators destroy backups first; [Amazon Threat Intelligence,
+  2026-02-20](https://aws.amazon.com/blogs/security/ai-augmented-threat-actor-accesses-fortigate-devices-at-scale/)
+  describes the FortiGate campaign actor targeting Veeam backup servers as
+  a ransomware precursor (on-prem, not AWS Backup). Direct
+  `ec2:DeleteSnapshot` and `rds:Delete*Snapshot` are not denied, because AWS
+  Backup expires those recovery points through the customer's backup
+  service role; pair with Vault Lock. Adds about 650 characters to
+  `security-services` (estimated about 2,700 with every option on).
+
 - `core/DenyProtectedRoleChanges` now denies `iam:PassRole` on protected
   roles to non-exempt principals. Compute running as an exempt role
   inherits its exemption, so passing one was a way around every

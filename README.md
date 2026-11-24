@@ -21,8 +21,8 @@ modules deploy to commercial regions and GovCloud.
   against requests such as "a workload role calls `cloudtrail:StopLogging`"
   and asserts the outcome. Plan-time `terraform test` covers inputs,
   AWS limits and wiring.
-- **Result:** 151 Python tests (policy behavior, the evaluator's own
-  semantics and the AI/ML Lambdas) and 52 `terraform test` runs. IAM Access Analyzer reports 0
+- **Result:** 172 Python tests (policy behavior, the evaluator's own
+  semantics and the AI/ML Lambdas) and 54 `terraform test` runs. IAM Access Analyzer reports 0
   findings on every rendered policy in both the commercial and GovCloud
   partitions. [Deployed to a real organization and probed with 62 live
   probes over two runs](docs/PROOF.md), all matching, after the first run

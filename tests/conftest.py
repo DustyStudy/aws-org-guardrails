@@ -65,6 +65,16 @@ def protection_locked() -> RenderedPolicies:
 
 
 @pytest.fixture(scope="session")
+def backup_locked() -> RenderedPolicies:
+    return render(
+        extra_vars={
+            "deny_backup_destruction": True,
+            "backup_destruction_exempt_principal_arns": [f"arn:aws:iam::*:role/security-backup-{'x' * 40}"],
+        }
+    )
+
+
+@pytest.fixture(scope="session")
 def data_locked() -> RenderedPolicies:
     # Every optional data-and-compute statement on, so the size test sees the largest bundle.
     return render(
