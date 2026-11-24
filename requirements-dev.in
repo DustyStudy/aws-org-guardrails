@@ -2,6 +2,6 @@
 #
 #   uv pip compile requirements-dev.in --universal --generate-hashes --python-version 3.12 --no-header -o requirements-dev.txt
 pytest==9.2.0
-ruff==0.17.4
+ruff==0.17.5
 # The AI/ML module Lambdas import boto3; tests mock every client.
-boto3==1.44.0
+boto3==1.44.5
